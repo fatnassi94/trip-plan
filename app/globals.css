@@ -1,0 +1,235 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* RoamAI design tokens — warm linen paper + route teal, matching the
+   project plan's "modern travel magazine" direction. Light values live on
+   :root; dark values only ever redefine the same custom properties. */
+:root {
+  --ink: 220 17% 11%;
+  --paper: 42 24% 92%;
+  --line: 42 20% 78%;
+  --muted: 42 10% 45%;
+  --accent: 174 80% 27%;
+  --accent-soft: 170 35% 90%;
+  --warm: 30 68% 46%;
+  --warm-soft: 36 60% 88%;
+
+  /* Motion. One easing curve for the whole product so every transition
+     feels like it came from the same hand. */
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: 42 24% 92%;
+    --paper: 220 20% 8%;
+    --line: 220 14% 22%;
+    --muted: 42 10% 60%;
+    --accent: 174 55% 58%;
+    --accent-soft: 174 40% 18%;
+    --warm: 36 70% 62%;
+    --warm-soft: 36 40% 20%;
+  }
+}
+
+* {
+  border-color: hsl(var(--line));
+}
+
+body {
+  background: hsl(var(--paper));
+  color: hsl(var(--ink));
+}
+
+/* ---------------------------------------------------------------------
+   Motion layer.
+
+   Everything below is decorative. Each animation is wrapped so that a
+   traveler who has asked their OS for reduced motion gets the same
+   layout with none of the movement (web-design-guidelines § Accessibility).
+   --------------------------------------------------------------------- */
+
+@layer utilities {
+  /* Aurora blobs behind the hero — the "ambient video" look without
+     shipping a video file. Three blurred radial gradients on long,
+     offset drift loops never repeat visibly. */
+  @keyframes roam-drift-a {
+    0%,
+    100% {
+      transform: translate3d(-6%, -4%, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(8%, 6%, 0) scale(1.18);
+    }
+  }
+  @keyframes roam-drift-b {
+    0%,
+    100% {
+      transform: translate3d(6%, 8%, 0) scale(1.12);
+    }
+    50% {
+      transform: translate3d(-8%, -6%, 0) scale(0.92);
+    }
+  }
+  @keyframes roam-drift-c {
+    0%,
+    100% {
+      transform: translate3d(0, 6%, 0) scale(0.95);
+    }
+    50% {
+      transform: translate3d(-10%, -8%, 0) scale(1.25);
+    }
+  }
+
+  .roam-blob-a {
+    animation: roam-drift-a 26s var(--ease-out-soft) infinite;
+  }
+  .roam-blob-b {
+    animation: roam-drift-b 34s var(--ease-out-soft) infinite;
+  }
+  .roam-blob-c {
+    animation: roam-drift-c 30s var(--ease-out-soft) infinite;
+  }
+
+  /* The signature flourish: a route drawing itself across the hero. */
+  @keyframes roam-draw {
+    from {
+      stroke-dashoffset: 1200;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  .roam-route {
+    stroke-dasharray: 1200;
+    animation: roam-draw 3.6s var(--ease-out-soft) 0.3s forwards;
+  }
+
+  @keyframes roam-pin-in {
+    from {
+      opacity: 0;
+      transform: scale(0.4);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  .roam-pin {
+    opacity: 0;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: roam-pin-in 0.6s var(--ease-out-soft) forwards;
+  }
+
+  /* Staggered entrance for hero copy. */
+  @keyframes roam-rise {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 18px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .roam-rise {
+    opacity: 0;
+    animation: roam-rise 0.9s var(--ease-out-soft) forwards;
+  }
+
+  /* Scroll reveal — the class is toggled by components/motion/reveal.tsx. */
+  .roam-reveal {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+    transition:
+      opacity 0.8s var(--ease-out-soft),
+      transform 0.8s var(--ease-out-soft);
+  }
+  .roam-reveal[data-visible="true"] {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Destination marquee. Duplicated track scrolls exactly half its width
+     so the loop is seamless. */
+  @keyframes roam-marquee {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+  .roam-marquee {
+    animation: roam-marquee 38s linear infinite;
+  }
+
+  /* Slow zoom for the ambient video / image layer — the Ken Burns effect
+     that makes a still feel alive. */
+  @keyframes roam-kenburns {
+    from {
+      transform: scale(1);
+    }
+    to {
+      transform: scale(1.12);
+    }
+  }
+  .roam-kenburns {
+    animation: roam-kenburns 24s ease-in-out infinite alternate;
+  }
+
+  /* A soft pulse for the "live" dot in the ticker. */
+  @keyframes roam-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.35;
+      transform: scale(0.75);
+    }
+  }
+  .roam-pulse {
+    animation: roam-pulse 2s ease-in-out infinite;
+  }
+}
+
+/* One switch turns the whole motion layer off. */
+@media (prefers-reduced-motion: reduce) {
+  .roam-blob-a,
+  .roam-blob-b,
+  .roam-blob-c,
+  .roam-route,
+  .roam-pin,
+  .roam-rise,
+  .roam-marquee,
+  .roam-kenburns,
+  .roam-pulse {
+    animation: none !important;
+  }
+
+  .roam-rise,
+  .roam-pin {
+    opacity: 1;
+    transform: none;
+  }
+
+  .roam-route {
+    stroke-dashoffset: 0;
+  }
+
+  .roam-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
