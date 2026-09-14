@@ -1,10 +1,12 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ArrowRight, Check } from "lucide-react";
-import { cacheTrip } from "@/lib/trip-store";
-import type { BudgetTier, Pace, Trip, WalkingTolerance } from "@/types/trip";
+import { BudgetSelector, type BudgetOption } from "@/components/profile/budget-selector";
+import { AiThinking } from "@/components/trip/ai-thinking";
+import { useTripGeneration } from "@/components/trip/use-trip-generation";
+import type { BudgetTier, Pace, TripRequest, WalkingTolerance } from "@/types/trip";
 
 // 03 — Travel Profile. A Client Component because every control here is
 // interactive: selections have to be held in state and sent to
@@ -31,10 +33,29 @@ const FOOD_PREFERENCES = [
   "Halal",
 ];
 
-const BUDGET_TIERS: { value: BudgetTier; label: string; hint: string }[] = [
-  { value: "budget", label: "€", hint: "Budget" },
-  { value: "comfort", label: "€€", hint: "Comfort" },
-  { value: "premium", label: "€€€", hint: "Premium" },
+// Naming matches the BudgetTier type ("budget" | "comfort" | "premium")
+// used everywhere else in the app (types/trip.ts, the AI prompt, the
+// generated trip's own priceLevel banding) — "Luxury" would read fine in
+// isolation but would be a label with no matching value anywhere else.
+const BUDGET_TIERS: readonly BudgetOption<BudgetTier>[] = [
+  {
+    value: "budget",
+    label: "Budget",
+    hint: "€",
+    description: "Hostels and budget stays, street food and local eats, public transport.",
+  },
+  {
+    value: "comfort",
+    label: "Comfort",
+    hint: "€€",
+    description: "3-4 star hotels, a mix of local spots and well-known highlights.",
+  },
+  {
+    value: "premium",
+    label: "Premium",
+    hint: "€€€",
+    description: "Top-rated hotels, fine dining, and private transport where it helps.",
+  },
 ];
 
 const PACES: { value: Pace; label: string }[] = [
@@ -49,20 +70,7 @@ const WALKING: { value: WalkingTolerance; label: string }[] = [
   { value: "high", label: "High" },
 ];
 
-// The "AI Thinking" trace from the project plan — a visible sequence of
-// agent steps instead of a bare spinner. Purely presentational: it cycles
-// while the real request is in flight.
-const THINKING_STEPS = [
-  "Understanding your travel style",
-  "Exploring the destination",
-  "Choosing places that fit you",
-  "Building your itinerary",
-  "Optimizing your route",
-  "Writing the reason behind each pick",
-];
-
 function ProfileForm() {
-  const router = useRouter();
   const params = useSearchParams();
 
   const destination = params.get("destination")?.trim() || "Paris, France";
@@ -77,9 +85,7 @@ function ProfileForm() {
   const [walkingTolerance, setWalkingTolerance] = useState<WalkingTolerance>("medium");
   const [dislikes, setDislikes] = useState("");
 
-  const [status, setStatus] = useState<"idle" | "generating" | "error">("idle");
-  const [stepIndex, setStepIndex] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const { status, error, generate } = useTripGeneration();
 
   // Functional update, not `list.includes(...)` off the render closure:
   // two taps landing in the same React batch (an easy double-tap on a
@@ -95,81 +101,33 @@ function ProfileForm() {
   }
 
   async function handleGenerate() {
-    setStatus("generating");
-    setError(null);
-    setStepIndex(0);
+    const request: TripRequest = {
+      destination,
+      startDate,
+      endDate,
+      travelers,
+      profile: {
+        travelerTypes,
+        budgetTier,
+        pace,
+        walkingTolerance,
+        foodPreferences: foodPreferences.map((f) => f.toLowerCase()),
+        dislikes: dislikes
+          .split(",")
+          .map((d) => d.trim())
+          .filter(Boolean),
+      },
+    };
 
-    const ticker = setInterval(() => {
-      setStepIndex((i) => Math.min(i + 1, THINKING_STEPS.length - 1));
-    }, 2500);
-
-    try {
-      const res = await fetch("/api/trips/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          destination,
-          startDate,
-          endDate,
-          travelers,
-          profile: {
-            travelerTypes,
-            budgetTier,
-            pace,
-            walkingTolerance,
-            foodPreferences: foodPreferences.map((f) => f.toLowerCase()),
-            dislikes: dislikes
-              .split(",")
-              .map((d) => d.trim())
-              .filter(Boolean),
-          },
-        }),
-      });
-
-      const payload = await res.json();
-
-      if (!res.ok) {
-        throw new Error(payload?.error ?? "Trip generation failed");
-      }
-
-      const id: string = payload.id ?? "local";
-      cacheTrip(id, payload.trip as Trip);
-      router.push(`/trip/${id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-      setStatus("error");
-    } finally {
-      clearInterval(ticker);
-    }
+    // No pre-flight paywall check: the trip gets built first so the
+    // traveler watches it happen, and /api/trips/generate decides at the
+    // end whether to hand over the itinerary or just a preview plus a
+    // redirect to /unlock. useTripGeneration routes either outcome.
+    await generate(request);
   }
 
   if (status === "generating") {
-    return (
-      <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-20">
-        <p className="font-mono text-xs uppercase tracking-widest text-accent">
-          Building your perfect trip
-        </p>
-        <h1 className="mt-3 font-display text-3xl font-semibold">{destination}</h1>
-        <ol className="mt-10 flex flex-col gap-3" aria-live="polite">
-          {THINKING_STEPS.map((step, i) => (
-            <li
-              key={step}
-              className={`flex items-center gap-3 text-sm transition-opacity ${
-                i <= stepIndex ? "opacity-100" : "opacity-35"
-              }`}
-            >
-              <span className="font-mono text-accent" aria-hidden="true">
-                {i < stepIndex ? "✓" : "✦"}
-              </span>
-              {step}
-            </li>
-          ))}
-        </ol>
-        <p className="mt-10 text-sm text-muted">
-          This usually takes 10–30 seconds on the free tier.
-        </p>
-      </main>
-    );
+    return <AiThinking destination={destination} />;
   }
 
   return (
@@ -185,6 +143,14 @@ function ProfileForm() {
         {travelers === 1 ? "traveler" : "travelers"}
       </p>
 
+      {/* Near the top, right under the destination/dates line: budget
+          shapes almost every downstream recommendation (see
+          buildTripUserPrompt), so it comes before the multi-select
+          preference chips rather than after them. */}
+      <Section label="Budget">
+        <BudgetSelector options={BUDGET_TIERS} value={budgetTier} onChange={setBudgetTier} />
+      </Section>
+
       <Section label="Pick any that fit" count={travelerTypes.length}>
         <div className="flex flex-wrap gap-2">
           {TRAVELER_TYPES.map((type) => (
@@ -193,19 +159,6 @@ function ProfileForm() {
               label={type}
               selected={travelerTypes.includes(type)}
               onClick={() => toggle(setTravelerTypes, type)}
-            />
-          ))}
-        </div>
-      </Section>
-
-      <Section label="Budget">
-        <div className="flex flex-wrap gap-2">
-          {BUDGET_TIERS.map((tier) => (
-            <Chip
-              key={tier.value}
-              label={`${tier.label} ${tier.hint}`}
-              selected={budgetTier === tier.value}
-              onClick={() => setBudgetTier(tier.value)}
             />
           ))}
         </div>

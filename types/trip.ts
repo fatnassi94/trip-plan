@@ -37,6 +37,13 @@ export interface ItineraryItem {
   tags?: string[];
   lat?: number;
   lng?: number;
+  /** Street address or, failing that, a neighborhood — shown on the
+   * Activity Card and used to build its map links (lib/trip-links.ts). */
+  address?: string;
+  /** 2-4 short, concrete things to do/see/eat at this stop — the "what
+   * to do here" list on the Activity Card. Optional so older cached
+   * trips generated before this field existed still render cleanly. */
+  suggestions?: string[];
   /** "Why I chose this for you" — required on every item. This line is
    * what the Activity Card renders; never leave it generic. */
   reason: string;
@@ -54,4 +61,24 @@ export interface Trip {
   endDate: string;
   travelers: number;
   days: TripDay[];
+}
+
+/**
+ * What a traveler without an active plan is allowed to see: enough to know
+ * the trip is real and worth paying for (where, how long, what each day is
+ * called) and nothing they could actually travel on — no times, places,
+ * addresses or "why I chose this" lines.
+ *
+ * The full itinerary stays server-side until app/api/trips/claim hands it
+ * over. Returning the whole thing and hiding it in the UI would put the
+ * entire product in the browser's network tab.
+ */
+export interface TripPreview {
+  destination: string;
+  startDate: string;
+  endDate: string;
+  travelers: number;
+  dayCount: number;
+  totalStops: number;
+  dayTitles: string[];
 }

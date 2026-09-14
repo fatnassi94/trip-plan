@@ -14,6 +14,12 @@ export const ItineraryItemSchema = z.object({
   tags: z.array(z.string()).max(6).optional(),
   lat: z.number().min(-90).max(90).optional(),
   lng: z.number().min(-180).max(180).optional(),
+  address: z.string().min(1).max(160).optional(),
+  // No .min() on purpose: this is a repair-retry pipeline on a free-tier
+  // model (see lib/ai/provider.ts), and a stray empty array shouldn't be
+  // the difference between a trip that saves and one that doesn't. The UI
+  // falls back gracefully when it's missing or short — see ActivityCard.
+  suggestions: z.array(z.string().min(1).max(140)).max(4).optional(),
   reason: z.string().min(1).max(280),
 });
 

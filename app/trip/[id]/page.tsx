@@ -1,25 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { readCachedTrip } from "@/lib/trip-store";
-import type { Trip } from "@/types/trip";
+import { useTrip } from "@/components/trip/use-trip";
 
-// 06 — Trip Overview. Reads the trip the generator just produced. Once
-// auth + Supabase are wired up, add a server fetch by id here and fall
-// back to this cache — the cache is what makes the app work with no
-// database configured at all.
+// 06 — Trip Overview. Reads the trip the generator just produced, from
+// this tab's cache or (once logged in) the database — see
+// components/trip/use-trip.ts.
 export default function TripOverviewPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "local";
-  const [trip, setTrip] = useState<Trip | null>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    setTrip(readCachedTrip(id));
-    setLoaded(true);
-  }, [id]);
+  const { trip, loaded } = useTrip(id);
 
   if (!loaded) {
     return <main className="mx-auto max-w-2xl px-6 py-20 text-muted">Loading…</main>;
@@ -77,12 +68,14 @@ export default function TripOverviewPage() {
         ))}
       </ol>
 
-      <Link
-        href="/create-trip"
-        className="mt-10 inline-flex text-sm text-accent underline underline-offset-4"
-      >
-        Plan another trip
-      </Link>
+      <div className="mt-10 flex gap-6 text-sm">
+        <Link href="/create-trip" className="text-accent underline underline-offset-4">
+          Plan another trip
+        </Link>
+        <Link href="/account" className="text-muted underline underline-offset-4 hover:text-accent">
+          My account
+        </Link>
+      </div>
     </main>
   );
 }

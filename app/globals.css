@@ -43,6 +43,60 @@ body {
 }
 
 /* ---------------------------------------------------------------------
+   Budget slider (components/profile/budget-selector.tsx).
+
+   A native <input type="range"> for the accessibility/keyboard/touch
+   support that comes free with it — but its default appearance can't be
+   themed through Tailwind utilities alone, since the thumb and track are
+   separate vendor-prefixed pseudo-elements. The colored fill itself comes
+   from the `background` the component sets inline (a two-stop gradient
+   recomputed on each value change) — the track/thumb rules below just
+   need to stay transparent/unstyled everywhere except the thumb itself
+   so that gradient shows through.
+   --------------------------------------------------------------------- */
+
+.roam-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 9999px;
+  cursor: pointer;
+}
+
+.roam-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: transparent; /* the fill comes from the input's own background */
+}
+
+.roam-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -8px; /* centers a 22px thumb on a 6px track */
+  height: 22px;
+  width: 22px;
+  border-radius: 9999px;
+  background: hsl(var(--accent));
+  border: 3px solid hsl(var(--paper));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.roam-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.roam-slider::-moz-range-thumb {
+  height: 22px;
+  width: 22px;
+  border-radius: 9999px;
+  background: hsl(var(--accent));
+  border: 3px solid hsl(var(--paper));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* ---------------------------------------------------------------------
    Motion layer.
 
    Everything below is decorative. Each animation is wrapped so that a

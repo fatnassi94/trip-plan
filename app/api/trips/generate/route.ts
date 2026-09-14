@@ -1,11 +1,40 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { generateTrip } from "@/lib/ai/provider";
-import { createServiceRoleClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { createServiceRoleClient, createSessionClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import { isAuthConfigured } from "@/lib/supabase/config";
+import type { TripPreview } from "@/types/trip";
 
 // The only place in the app that talks to the AI provider — see
 // `lib/ai/provider.ts`. Browser -> this route -> AI provider, never
 // Browser -> AI provider directly (see `ai-security` skill).
+//
+// THE PAID-PLAN GATE. Anyone may call this and the trip is always
+// generated — the traveler watches the "AI Thinking" trace first and only
+// then meets the paywall, which is the flow the product wants. What
+// changes with payment is what comes BACK:
+//
+//   active plan  -> { trip }        the full itinerary
+//   no plan      -> { locked, id, preview }   day titles and counts only
+//
+// The full itinerary is written to the trips table with user_id NULL and
+// never sent to an unpaid browser; app/api/trips/claim/route.ts hands it
+// over once a plan is attached. Returning everything and hiding it in the
+// UI would leave the whole product sitting in the network tab, so the
+// split happens here on the server or not at all.
+//
+// Two deliberate escape hatches, both matching the project's existing
+// "graceful when unconfigured" stance:
+//   - auth not configured (no anon key)      -> never locked
+//   - persistence not configured (no service -> never locked, because
+//     role key)                                 there is nowhere to park
+//                                               the itinerary while the
+//                                               traveler pays
+//
+// Cost note: generating before payment means unpaid visitors spend Gemini
+// quota. That's the accepted price of showing the trace first; if free
+// -tier quota ever becomes the binding constraint, rate limit this route
+// per IP (see `api-security`) rather than moving the gate back in front.
 
 const RequestSchema = z.object({
   destination: z.string().min(1).max(120),
@@ -46,6 +75,34 @@ export async function POST(req: Request) {
     );
   }
 
+  // Who is asking, and have they paid? Derived from the session cookie,
+  // never from the request body (see `auth-security`). Neither answer
+  // stops generation — they decide what gets returned at the end.
+  let userId: string | null = null;
+  let hasActivePlan = false;
+
+  if (isAuthConfigured()) {
+    const sessionClient = createSessionClient();
+    const {
+      data: { user },
+    } = await sessionClient.auth.getUser();
+
+    if (user) {
+      userId = user.id;
+      const { data: profile } = await sessionClient
+        .from("profiles")
+        .select("subscription_status")
+        .eq("id", user.id)
+        .maybeSingle();
+      hasActivePlan = profile?.subscription_status === "active";
+    }
+  }
+
+  // Nowhere to park an unpaid itinerary means no way to withhold it, so
+  // don't pretend to: hand it over as before.
+  const canLock = isAuthConfigured() && isSupabaseConfigured();
+  const shouldLock = canLock && !hasActivePlan;
+
   let trip;
   try {
     trip = await generateTrip(parsed.data);
@@ -61,14 +118,19 @@ export async function POST(req: Request) {
   // end to end (the client caches the trip for the session). Supabase
   // just adds durable, shareable trips on top.
   if (!isSupabaseConfigured()) {
-    return NextResponse.json({ id: null, persisted: false, trip });
+    return NextResponse.json({ id: null, persisted: false, locked: false, trip });
   }
 
+  let tripId: string | null = null;
   try {
     const supabase = createServiceRoleClient();
     const { data, error } = await supabase
       .from("trips")
       .insert({
+        // NULL while unpaid — app/api/trips/claim stamps the owner on.
+        // RLS ("trips: owner read/write") denies every anon-key read of a
+        // NULL-owner row, so parking it here exposes it to nobody.
+        user_id: hasActivePlan ? userId : null,
         destination: trip.destination,
         start_date: trip.startDate,
         end_date: trip.endDate,
@@ -79,12 +141,29 @@ export async function POST(req: Request) {
       .single();
 
     if (error) throw error;
-
-    return NextResponse.json({ id: data.id, persisted: true, trip });
+    tripId = data.id as string;
   } catch (err) {
     // A storage failure shouldn't cost the user the trip we just paid
-    // quota to generate — hand it back unsaved and log the reason.
+    // quota to generate — hand it back unsaved and log the reason. This
+    // also means we can't lock it (nowhere to park it), so it goes back
+    // in full rather than leaving the traveler with an unclaimable stub.
     console.error("Trip generated but not saved", err);
-    return NextResponse.json({ id: null, persisted: false, trip });
+    return NextResponse.json({ id: null, persisted: false, locked: false, trip });
   }
+
+  if (shouldLock) {
+    const preview: TripPreview = {
+      destination: trip.destination,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      travelers: trip.travelers,
+      dayCount: trip.days.length,
+      totalStops: trip.days.reduce((sum, day) => sum + day.items.length, 0),
+      dayTitles: trip.days.map((day) => day.title),
+    };
+    // Note what is NOT in this response: `trip`. That's the point.
+    return NextResponse.json({ id: tripId, persisted: true, locked: true, preview });
+  }
+
+  return NextResponse.json({ id: tripId, persisted: true, locked: false, trip });
 }
