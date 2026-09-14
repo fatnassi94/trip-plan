@@ -2,6 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Route map numbered pins (components/trip/route-map.tsx). Built as a
+   plain DOM element passed to maplibregl.Marker, not JSX — MapLibre owns
+   this node's positioning, so Tailwind classes cover shape/typography and
+   these two CSS custom properties (set once in JS from resolveColor())
+   carry the theme-aware colors a paint expression can't read from
+   var(--accent) directly. */
+.roam-marker {
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  border: 2px solid var(--roam-marker-paper);
+  background: var(--roam-marker-accent);
+  color: var(--roam-marker-paper);
+  font-size: 0.7rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s var(--ease-out-soft, ease);
+  padding: 0;
+}
+.roam-marker:hover,
+.roam-marker-active {
+  transform: scale(1.25);
+}
+@media (prefers-reduced-motion: reduce) {
+  .roam-marker {
+    transition: none;
+  }
+}
+
 /* RoamAI design tokens — warm linen paper + route teal, matching the
    project plan's "modern travel magazine" direction. Light values live on
    :root; dark values only ever redefine the same custom properties. */

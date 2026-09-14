@@ -46,9 +46,15 @@ export default function TripOverviewPage() {
         {trip.travelers === 1 ? "traveler" : "travelers"} · {totalStops} stops
       </p>
 
-      <h2 className="mt-12 font-mono text-xs uppercase tracking-widest text-muted">
-        Your days
-      </h2>
+      <div className="mt-12 flex items-baseline justify-between gap-3">
+        <h2 className="font-mono text-xs uppercase tracking-widest text-muted">Your days</h2>
+        <Link
+          href={`/trip/${id}/map`}
+          className="font-mono text-xs uppercase tracking-widest text-accent underline underline-offset-4 hover:opacity-80"
+        >
+          View map →
+        </Link>
+      </div>
       <ol className="mt-4 flex flex-col gap-3">
         {trip.days.map((day) => (
           <li key={day.day}>
