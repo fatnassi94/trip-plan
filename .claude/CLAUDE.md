@@ -16,9 +16,13 @@ Next.js 14 (App Router) + TypeScript + Tailwind + shadcn/ui, Supabase
 - `npm run build` — production build
 - `npm run lint` — ESLint
 - `npm run typecheck` — `tsc --noEmit`
+- `npm test` — Vitest unit + API route + component tests (`tests/unit`)
+- `npm run test:e2e` — Playwright end-to-end tests against a production
+  build wired to a fake Supabase (`tests/e2e`); never touches the real project
+- `npm run test:all` — all of the above, in order
 
-Run `typecheck` and `lint` before calling any change done. There is no test
-suite yet (see the `testing` skill for what to add and when).
+Every feature and bug fix ships with tests, and `test:all` must pass before
+a change is handed over — see the `testing` skill for how to write them.
 
 ## Non-negotiable rules
 

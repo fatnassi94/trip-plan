@@ -44,7 +44,7 @@ export default async function AccountPage() {
       <EmptyState
         title="Your trips live here"
         body="Log in to see your plan, reopen past itineraries, and rate how they went."
-        cta={{ href: "/unlock", label: "Log in or sign up" }}
+        cta={{ href: "/unlock?next=/account", label: "Log in or sign up" }}
       />
     );
   }

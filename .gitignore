@@ -7,3 +7,8 @@ npm-debug.log*
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
+
+# Test artifacts
+/.next-e2e/
+/test-results/
+/playwright-report/

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { CalendarDays, Loader2, Lock, MapPin, Users } from "lucide-react";
 import { PLANS, type PlanId } from "@/lib/plans";
 import { formatTripRange } from "@/lib/date";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 import { RouteArt } from "@/components/brand/route-art";
 import { PlanCard } from "@/components/plans/plan-card";
 import { AuthForm } from "@/components/auth/auth-form";
@@ -35,6 +36,16 @@ type Phase =
   | "plans" // signed in, no active plan: choose one
   | "working" // a plan click is in flight, or a trip is being unlocked
   | "done"; // redirecting; keep the screen quiet
+
+// Where to go after signing in when there's no locked trip to unlock —
+// e.g. /account sends "Log in or sign up" here with ?next=/account, and a
+// traveler who only wanted their trips shouldn't be dropped on pricing.
+// Read from window, not useSearchParams, so this statically rendered page
+// needs no Suspense boundary; it's only ever called after mount.
+function readNextPath(): string | null {
+  const raw = new URLSearchParams(window.location.search).get("next");
+  return raw ? safeRedirectPath(raw) : null;
+}
 
 export default function UnlockPage() {
   const router = useRouter();
@@ -86,9 +97,18 @@ export default function UnlockPage() {
         return;
       }
 
-      // Signed in already. If they've also already paid, there is nothing
-      // to choose here — finish the job they came for instead of showing
-      // a pricing table they don't need.
+      // Signed in already, and came here for something other than a
+      // locked trip: send them on to it.
+      const next = readNextPath();
+      if (!pending && next) {
+        setPhase("done");
+        router.push(next);
+        return;
+      }
+
+      // If they've also already paid, there is nothing to choose here —
+      // finish the job they came for instead of showing a pricing table
+      // they don't need.
       if (status.hasActivePlan) {
         if (!pending) {
           setPhase("done");
@@ -127,6 +147,13 @@ export default function UnlockPage() {
       const status = (await res.json()) as AccountStatus;
       const pending = readLockedTrip();
       setLocked(pending);
+
+      const next = readNextPath();
+      if (!pending && next) {
+        setPhase("done");
+        router.push(next);
+        return;
+      }
 
       if (status.hasActivePlan) {
         if (pending) {
