@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { Fraunces, Sora, IBM_Plex_Mono } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
-const display = Fraunces({
+// Editorial Voyage type: Plus Jakarta Sans for headlines and labels,
+// Inter for body copy and dense itinerary data. The design system uses
+// Jakarta for its small uppercase labels, so `font-mono` maps to it too.
+const display = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: ["500", "600"],
+  weight: ["500", "600", "700"],
 });
-const sans = Sora({ subsets: ["latin"], variable: "--font-sans" });
-const mono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-  weight: ["400", "500"],
-});
+const sans = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "RoamAI — your AI travel companion",
@@ -28,9 +28,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${display.variable} ${sans.variable} ${mono.variable} font-sans antialiased`}
+        className={`${display.variable} ${sans.variable} font-sans antialiased`}
+        style={{ ["--font-mono" as string]: "var(--font-display)" }}
       >
+        <SiteHeader />
         {children}
+        <SiteFooter />
       </body>
     </html>
   );

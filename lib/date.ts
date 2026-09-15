@@ -25,6 +25,41 @@ export function fromISODate(iso: string): Date | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
+// Trip headers format with a fixed locale: these strings can render on
+// the server and again in the browser, and a locale-dependent format
+// would make the two disagree (a hydration mismatch).
+const TRIP_LOCALE = "en-US";
+
+/** "Sep 18 – Sep 25, 2026" for trip headers; raw strings if unparseable. */
+export function formatTripRange(startIso: string, endIso: string): string {
+  const start = fromISODate(startIso);
+  const end = fromISODate(endIso);
+  if (!start || !end) return `${startIso} → ${endIso}`;
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const startLabel = start.toLocaleDateString(TRIP_LOCALE, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+  const endLabel = end.toLocaleDateString(TRIP_LOCALE, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  return `${startLabel} – ${endLabel}`;
+}
+
+/** The calendar date of a 1-indexed trip day, e.g. "Thursday, Sep 19". */
+export function formatTripDay(startIso: string, dayNumber: number): string | null {
+  const start = fromISODate(startIso);
+  if (!start) return null;
+  return addDays(start, dayNumber - 1).toLocaleDateString(TRIP_LOCALE, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }

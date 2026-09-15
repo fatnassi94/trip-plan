@@ -160,10 +160,10 @@ export function DateRangePicker({ value, onChange, minDate }: DateRangePickerPro
             setFocusedDate(value.start ?? today);
             setOpen((o) => !o);
           }}
-          className="flex flex-1 flex-col gap-2 rounded-md border border-border bg-transparent px-4 py-3 text-left text-sm outline-none focus:border-accent"
+          className="flex flex-1 flex-col gap-1 rounded border border-border bg-surface px-4 py-3 text-left text-sm outline-none transition-shadow hover:border-accent/50 focus:border-accent focus:ring-4 focus:ring-accent/10"
         >
-          <span className="font-mono text-xs uppercase tracking-widest text-muted">From</span>
-          <span className={value.start ? "" : "text-muted"}>
+          <span className="font-mono text-[0.6rem] font-bold uppercase tracking-widest text-muted">From</span>
+          <span className={value.start ? "font-display font-semibold text-accent" : "text-muted"}>
             {value.start ? formatDisplayDate(value.start) : "Select date"}
           </span>
         </button>
@@ -176,17 +176,17 @@ export function DateRangePicker({ value, onChange, minDate }: DateRangePickerPro
             setFocusedDate(value.end ?? value.start ?? today);
             setOpen((o) => !o);
           }}
-          className="flex flex-1 flex-col gap-2 rounded-md border border-border bg-transparent px-4 py-3 text-left text-sm outline-none focus:border-accent"
+          className="flex flex-1 flex-col gap-1 rounded border border-border bg-surface px-4 py-3 text-left text-sm outline-none transition-shadow hover:border-accent/50 focus:border-accent focus:ring-4 focus:ring-accent/10"
         >
-          <span className="font-mono text-xs uppercase tracking-widest text-muted">To</span>
-          <span className={value.end ? "" : "text-muted"}>
+          <span className="font-mono text-[0.6rem] font-bold uppercase tracking-widest text-muted">To</span>
+          <span className={value.end ? "font-display font-semibold text-accent" : "text-muted"}>
             {value.end ? formatDisplayDate(value.end) : "Select date"}
           </span>
         </button>
       </div>
 
       {nights !== null ? (
-        <p className="mt-2 font-mono text-xs text-accent">
+        <p className="mt-2 font-display text-xs font-semibold text-warm">
           {nights} {nights === 1 ? "night" : "nights"}
         </p>
       ) : null}
@@ -197,7 +197,7 @@ export function DateRangePicker({ value, onChange, minDate }: DateRangePickerPro
           role="dialog"
           aria-label="Choose travel dates"
           aria-modal="false"
-          className="absolute z-30 mt-2 w-full max-w-sm rounded-lg border border-border bg-paper p-4 shadow-lg sm:w-[22rem]"
+          className="absolute z-30 mt-2 w-full max-w-sm rounded-lg bg-surface p-4 shadow-float ring-1 ring-border sm:w-[22rem]"
         >
           <div className="flex items-center justify-between">
             <button
@@ -310,7 +310,7 @@ export function DateRangePicker({ value, onChange, minDate }: DateRangePickerPro
                 setOpen(false);
                 triggerRef.current?.focus();
               }}
-              className="rounded-md bg-accent px-4 py-2 text-xs font-medium text-paper hover:opacity-90"
+              className="rounded bg-accent px-4 py-2 font-display text-xs font-semibold text-paper hover:bg-deep"
             >
               Done
             </button>

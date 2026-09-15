@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Lock } from "lucide-react";
+import { CalendarDays, Loader2, Lock, MapPin, Users } from "lucide-react";
 import { PLANS, type PlanId } from "@/lib/plans";
+import { formatTripRange } from "@/lib/date";
+import { RouteArt } from "@/components/brand/route-art";
 import { PlanCard } from "@/components/plans/plan-card";
 import { AuthForm } from "@/components/auth/auth-form";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { PlannerProgress } from "@/components/trip/planner-progress";
 import { cacheTrip } from "@/lib/trip-store";
 import { readLockedTrip, clearLockedTrip, type LockedTrip } from "@/lib/pending-trip";
 import type { AccountStatus } from "@/types/account";
@@ -177,106 +180,169 @@ export default function UnlockPage() {
   // ── checking / done: deliberately minimal, and crucially plan-free ──
   if (phase === "checking" || phase === "done") {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-20">
-        <p className="text-sm text-muted" role="status" aria-live="polite">
+      <main className="mx-auto flex max-w-2xl justify-center px-5 py-24">
+        <p
+          className="inline-flex items-center gap-2 rounded-full bg-surface px-4 py-2 font-display text-sm font-semibold text-accent shadow-card"
+          role="status"
+          aria-live="polite"
+        >
+          <Loader2 className="h-4 w-4 animate-spin text-sunset" aria-hidden="true" />
           {phase === "checking" ? "Loading…" : "Opening your trip…"}
         </p>
       </main>
     );
   }
 
+  const title =
+    phase === "unauthenticated"
+      ? preview
+        ? "Create an account to unlock your personalized trip plan."
+        : "Log in or create an account to see your trips."
+      : "Choose a plan to unlock your personalized trip plan.";
+
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
-      <p className="font-mono text-xs uppercase tracking-widest text-accent">
-        {preview ? "Your trip is ready" : "Almost there"}
-      </p>
-      <h1 className="mt-3 font-display text-3xl font-semibold text-balance">
-        {phase === "unauthenticated"
-          ? preview
-            ? "Create an account to unlock your personalized trip plan."
-            : "Log in or create an account to see your profile."
-          : "Choose a plan to unlock your personalized trip plan."}
-      </h1>
-
-      {/* The trip they just watched get built — proof it's real, with
-          nothing in it they could actually travel on. Shown in both
-          phases: it's the reason they're here. */}
+    <main className="mx-auto max-w-[1200px] px-5 pb-12 lg:px-12">
+      {/* A trip was just built: this is the last step of the planner, so
+          it carries the same progress header as the steps before it. */}
       {preview ? (
-        <section className="mt-8 rounded-lg border border-border bg-accent-soft/25 p-5">
-          <p className="font-display text-xl font-semibold">{preview.destination}</p>
-          <p className="mt-1 text-sm text-muted">
-            {preview.startDate} → {preview.endDate} · {preview.dayCount}{" "}
-            {preview.dayCount === 1 ? "day" : "days"} · {preview.totalStops} stops ·{" "}
-            {preview.travelers} {preview.travelers === 1 ? "traveler" : "travelers"}
-          </p>
-
-          <ol className="mt-5 flex flex-col gap-2">
-            {preview.dayTitles.map((title, i) => (
-              <li key={`${title}-${i}`} className="flex items-baseline gap-3 text-sm">
-                <span className="font-mono text-xs text-accent">Day {i + 1}</span>
-                <span className="flex-1">{title}</span>
-              </li>
-            ))}
-          </ol>
-
-          <p className="mt-5 flex items-center gap-2 border-t border-border pt-4 text-xs text-muted">
-            <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-            Times, places, maps and the reason behind every pick unlock below.
-          </p>
-        </section>
-      ) : null}
-
-      {phase === "unauthenticated" && !preview ? (
-        <p className="mt-4 text-sm text-muted">
-          No trip in progress.{" "}
-          <Link href="/create-trip" className="text-accent underline underline-offset-4">
-            Plan one
-          </Link>
-          .
-        </p>
-      ) : null}
-
-      {/* ── Step 4: unauthenticated sees auth ONLY. No pricing. ── */}
-      {phase === "unauthenticated" ? (
-        <div className="mt-10">
-          <AuthForm onAuthenticated={handleAuthenticated} />
-        </div>
+        <PlannerProgress current={4} title={title} status="Ready to unlock" />
       ) : (
-        /* ── Step 5: signed in, so now (and only now) the plans. ── */
-        <>
-          <h2 className="mt-10 font-mono text-xs uppercase tracking-widest text-muted">
-            Choose a plan
-          </h2>
-          <div
-            role="radiogroup"
-            aria-label="Choose a plan"
-            aria-busy={phase === "working"}
-            className="mt-4 grid gap-4 sm:grid-cols-3"
+        <header className="roam-rise pb-6 pt-10">
+          <p className="font-mono text-[0.65rem] font-bold uppercase tracking-widest text-warm">
+            Almost there
+          </p>
+          <h1 className="mt-2 max-w-2xl font-display text-3xl font-bold tracking-tight text-accent text-balance sm:text-4xl">
+            {title}
+          </h1>
+        </header>
+      )}
+
+      <div
+        className={`grid items-start gap-6 ${
+          phase === "unauthenticated" && preview ? "lg:grid-cols-12" : ""
+        }`}
+      >
+        {/* The trip they just watched get built — proof it's real, with
+            nothing in it they could actually travel on. Shown in both
+            phases: it's the reason they're here. */}
+        {preview ? (
+          <section
+            className={`relative isolate overflow-hidden rounded-xl bg-gradient-to-br from-deep via-accent to-warm p-6 text-paper shadow-float sm:p-8 ${
+              phase === "unauthenticated" ? "lg:col-span-7" : ""
+            }`}
           >
-            {PLANS.map((plan) => (
-              <PlanCard
-                key={plan.id}
-                plan={plan}
-                selected={pendingPlan === plan.id}
-                busy={phase === "working"}
-                onSelect={() => handleSelectPlan(plan.id)}
-              />
-            ))}
+            <RouteArt className="absolute inset-0 -z-10 h-full w-full opacity-50" />
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-paper/15 px-2.5 py-1 font-mono text-[0.65rem] font-bold uppercase tracking-widest backdrop-blur-md">
+                Your trip is ready
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-deep/60 px-2.5 py-1 font-mono text-[0.65rem] font-bold text-warm-soft backdrop-blur-md">
+                <Lock className="h-3 w-3" aria-hidden="true" />
+                Locked
+              </span>
+            </div>
+            <p className="mt-4 font-display text-3xl font-bold tracking-tight">{preview.destination}</p>
+            <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-accent-soft">
+              <span className="flex items-center gap-1.5">
+                <CalendarDays className="h-4 w-4 text-sunset" aria-hidden="true" />
+                {formatTripRange(preview.startDate, preview.endDate)}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <MapPin className="h-4 w-4 text-sunset" aria-hidden="true" />
+                {preview.dayCount} {preview.dayCount === 1 ? "day" : "days"} · {preview.totalStops} stops
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Users className="h-4 w-4 text-sunset" aria-hidden="true" />
+                {preview.travelers} {preview.travelers === 1 ? "traveler" : "travelers"}
+              </span>
+            </p>
+
+            <ol className="mt-6 grid gap-2 sm:grid-cols-2">
+              {preview.dayTitles.map((dayTitle, i) => (
+                <li
+                  key={`${dayTitle}-${i}`}
+                  className="roam-rise flex items-center gap-3 rounded-md bg-paper/10 px-3 py-2.5 ring-1 ring-paper/10 backdrop-blur-md"
+                  style={{ animationDelay: `${Math.min(i, 8) * 70}ms` }}
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-paper/15 font-display text-xs font-bold">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className="min-w-0 truncate text-sm font-medium">{dayTitle}</span>
+                </li>
+              ))}
+            </ol>
+
+            <p className="mt-6 flex items-center gap-2 border-t border-paper/15 pt-4 text-xs text-accent-soft">
+              <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+              Times, places, maps and the reason behind every pick unlock below.
+            </p>
+          </section>
+        ) : null}
+
+        {/* ── Step 4: unauthenticated sees auth ONLY. No pricing. ── */}
+        {phase === "unauthenticated" ? (
+          <div
+            className={`rounded-lg bg-surface p-6 shadow-lift sm:p-8 ${
+              preview ? "lg:sticky lg:top-24 lg:col-span-5" : "max-w-md"
+            }`}
+          >
+            {!preview ? (
+              <p className="mb-5 text-sm text-muted">
+                No trip in progress.{" "}
+                <Link href="/create-trip" className="font-semibold text-accent underline underline-offset-4 hover:text-warm">
+                  Plan one
+                </Link>
+                .
+              </p>
+            ) : null}
+            <AuthForm onAuthenticated={handleAuthenticated} />
           </div>
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted" role="status" aria-live="polite">
+        ) : (
+          /* ── Step 5: signed in, so now (and only now) the plans. ── */
+          <section aria-labelledby="plans-heading">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="font-mono text-[0.65rem] font-bold uppercase tracking-widest text-warm">
+                  Plans
+                </p>
+                <h2 id="plans-heading" className="mt-1 font-display text-2xl font-bold tracking-tight text-accent">
+                  Choose a plan
+                </h2>
+              </div>
+              {/* Signed in as the wrong account shouldn't be a dead end. */}
+              <LogoutButton className="text-xs" />
+            </div>
+            <div
+              role="radiogroup"
+              aria-label="Choose a plan"
+              aria-busy={phase === "working"}
+              className="mt-4 grid gap-4 sm:grid-cols-3"
+            >
+              {PLANS.map((plan, i) => (
+                <PlanCard
+                  key={plan.id}
+                  plan={plan}
+                  selected={pendingPlan === plan.id}
+                  busy={phase === "working"}
+                  onSelect={() => handleSelectPlan(plan.id)}
+                  delay={i * 90}
+                />
+              ))}
+            </div>
+            <p className="mt-4 flex items-center gap-2 text-xs text-muted" role="status" aria-live="polite">
+              {phase === "working" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-sunset" aria-hidden="true" />
+              ) : null}
               {phase === "working"
                 ? "Processing your purchase…"
                 : "Choosing a plan completes your purchase and unlocks your trip."}
             </p>
-            {/* Signed in as the wrong account shouldn't be a dead end. */}
-            <LogoutButton className="text-xs" />
-          </div>
-        </>
-      )}
+          </section>
+        )}
+      </div>
 
       {error ? (
-        <p className="mt-4 rounded-md border border-warm bg-warm-soft px-4 py-3 text-sm text-warm">
+        <p role="alert" className="mt-4 rounded-md border border-warm bg-warm-soft px-4 py-3 text-sm text-warm">
           {error}
         </p>
       ) : null}

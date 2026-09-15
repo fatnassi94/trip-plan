@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { ArrowLeft, ArrowRight, MapPin, Route } from "lucide-react";
 import { useTrip } from "@/components/trip/use-trip";
+import { formatTripRange } from "@/lib/date";
 import type { ItineraryItem } from "@/types/trip";
 
 // MapLibre touches `window` at import time, which breaks Next's server
@@ -58,22 +60,29 @@ export default function TripMapPage() {
   }, [trip]);
 
   if (!loaded) {
-    return <main className="mx-auto max-w-2xl px-6 py-20 text-muted">Loading…</main>;
+    return (
+      <main className="mx-auto max-w-[1440px] px-5 py-8 lg:px-12" aria-busy="true">
+        <div className="h-10 w-64 animate-pulse rounded bg-accent-soft" />
+        <div className="mt-6 h-[60vh] animate-pulse rounded-lg bg-accent-soft/60" />
+        <p className="sr-only">Loading…</p>
+      </main>
+    );
   }
 
   if (!trip) {
     return (
-      <main className="mx-auto max-w-2xl px-6 py-20">
-        <h1 className="font-display text-2xl font-semibold">No trip loaded</h1>
+      <main className="mx-auto max-w-2xl px-5 py-20 text-center">
+        <h1 className="font-display text-2xl font-bold text-accent">No trip loaded</h1>
         <p className="mt-3 text-sm text-muted">
           This trip isn&apos;t in this tab&apos;s session. Generate a new one, or open it again
           from your account.
         </p>
         <Link
           href="/create-trip"
-          className="mt-8 inline-flex rounded-md bg-accent px-6 py-3 font-medium text-paper hover:opacity-90"
+          className="mt-8 inline-flex items-center gap-2 rounded bg-accent px-6 py-3 font-display font-semibold text-paper shadow-card hover:bg-deep"
         >
           Plan a trip
+          <ArrowRight className="h-4 w-4 text-sunset" aria-hidden="true" />
         </Link>
       </main>
     );
@@ -82,55 +91,89 @@ export default function TripMapPage() {
   const skipped = totalItems - stops.length;
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-16">
+    <main className="mx-auto max-w-[1440px] px-5 py-8 lg:px-12">
       <Link
         href={`/trip/${id}`}
-        className="font-mono text-xs uppercase tracking-widest text-accent"
+        className="inline-flex items-center gap-1.5 rounded font-display text-sm font-semibold text-accent transition-colors hover:text-warm"
       >
-        ← {trip.destination}
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        {trip.destination}
       </Link>
-      <h1 className="mt-3 font-display text-3xl font-semibold">Map</h1>
-      <p className="mt-2 text-sm text-muted">
-        Every stop across your {trip.days.length}-day trip, in order.
-        {skipped > 0
-          ? ` ${skipped} ${skipped === 1 ? "stop doesn't" : "stops don't"} have exact coordinates and ${skipped === 1 ? "isn't" : "aren't"} plotted.`
-          : ""}
-      </p>
+
+      <div className="roam-rise mt-3 flex flex-col justify-between gap-3 md:flex-row md:items-end">
+        <div>
+          <p className="font-mono text-[0.65rem] font-bold uppercase tracking-widest text-warm">
+            Whole-trip map · {formatTripRange(trip.startDate, trip.endDate)}
+          </p>
+          <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-accent sm:text-4xl">
+            Every stop, in order
+          </h1>
+          <p className="mt-2 text-sm text-muted">
+            {stops.length} of {totalItems} stops across {trip.days.length}{" "}
+            {trip.days.length === 1 ? "day" : "days"} are plotted.
+            {skipped > 0
+              ? ` ${skipped} ${skipped === 1 ? "stop doesn't" : "stops don't"} have exact coordinates.`
+              : ""}
+          </p>
+        </div>
+      </div>
 
       {stops.length === 0 ? (
-        <p className="mt-10 text-sm text-muted">
+        <div className="mt-8 flex flex-col items-center gap-2 rounded-lg bg-surface p-10 text-center text-sm text-muted shadow-card">
+          <MapPin className="h-6 w-6" aria-hidden="true" />
           None of this trip&apos;s stops have map coordinates yet.
-        </p>
+        </div>
       ) : (
-        <div className="mt-8 grid gap-6 lg:grid-cols-[360px_1fr]">
-          <ol className="flex max-h-[70vh] flex-col gap-2 overflow-y-auto pr-1 lg:order-1">
-            {stops.map((stop) => (
-              <li key={stop.key}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedKey(stop.key)}
-                  aria-current={selectedKey === stop.key ? "true" : undefined}
-                  className={`flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-                    selectedKey === stop.key
-                      ? "border-accent bg-accent-soft/50"
-                      : "border-border hover:border-accent"
-                  }`}
-                >
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent font-mono text-xs text-paper">
-                    {stop.label}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{stop.item.name}</span>
-                    <span className="mt-0.5 block font-mono text-xs text-muted">
-                      Day {stop.day} · {stop.item.start}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[380px_1fr]">
+          <ol className="flex max-h-[70vh] flex-col gap-2 overflow-y-auto rounded-lg bg-surface p-2 shadow-card lg:order-1">
+            {stops.map((stop, i) => {
+              const newDay = i === 0 || stops[i - 1].day !== stop.day;
+              const selected = selectedKey === stop.key;
+              return (
+                <li key={stop.key}>
+                  {newDay ? (
+                    <p className="px-2 pb-1 pt-2 font-mono text-[0.6rem] font-bold uppercase tracking-widest text-warm">
+                      Day {stop.day}
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedKey(stop.key)}
+                    aria-current={selected ? "true" : undefined}
+                    className={`flex w-full items-start gap-3 rounded-md px-3 py-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                      selected ? "bg-accent text-paper" : "hover:bg-accent-soft/60"
+                    }`}
+                  >
+                    <span
+                      className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-display text-xs font-bold ${
+                        selected ? "bg-sunset text-paper" : "bg-accent text-paper"
+                      }`}
+                    >
+                      {stop.label}
                     </span>
-                  </span>
-                </button>
-              </li>
-            ))}
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={`block truncate font-display text-sm font-semibold ${
+                          selected ? "text-paper" : "text-accent"
+                        }`}
+                      >
+                        {stop.item.name}
+                      </span>
+                      <span
+                        className={`mt-0.5 block text-xs tabular-nums ${
+                          selected ? "text-accent-soft" : "text-muted"
+                        }`}
+                      >
+                        {stop.item.start} · {stop.item.type}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ol>
 
-          <div className="h-[60vh] min-h-[420px] overflow-hidden rounded-lg border border-border lg:sticky lg:top-16 lg:order-2 lg:h-[calc(100vh-8rem)]">
+          <div className="relative h-[60vh] min-h-[420px] overflow-hidden rounded-lg bg-surface shadow-lift lg:sticky lg:top-24 lg:order-2 lg:h-[calc(100vh-8rem)]">
             <RouteMap
               stops={stops.map((s) => ({
                 key: s.key,
@@ -141,6 +184,12 @@ export default function TripMapPage() {
               selectedKey={selectedKey}
               onSelectStop={setSelectedKey}
             />
+            <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2 rounded-md bg-surface/95 px-3 py-2 shadow-card backdrop-blur-md">
+              <Route className="h-4 w-4 text-warm" aria-hidden="true" />
+              <span className="font-display text-xs font-bold text-accent">
+                {trip.destination} · {stops.length} stops
+              </span>
+            </div>
           </div>
         </div>
       )}

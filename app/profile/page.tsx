@@ -1,27 +1,49 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, Check } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Camera,
+  Check,
+  Coffee,
+  Compass,
+  Fingerprint,
+  Landmark,
+  Music,
+  ShoppingBag,
+  Sparkles,
+  Trees,
+  UtensilsCrossed,
+  type LucideIcon,
+} from "lucide-react";
 import { BudgetSelector, type BudgetOption } from "@/components/profile/budget-selector";
+import { RouteArt } from "@/components/brand/route-art";
 import { AiThinking } from "@/components/trip/ai-thinking";
+import { PlannerActionBar } from "@/components/trip/planner-action-bar";
+import { PlannerProgress } from "@/components/trip/planner-progress";
 import { useTripGeneration } from "@/components/trip/use-trip-generation";
+import { formatTripRange } from "@/lib/date";
 import type { BudgetTier, Pace, TripRequest, WalkingTolerance } from "@/types/trip";
 
-// 03 — Travel Profile. A Client Component because every control here is
-// interactive: selections have to be held in state and sent to
-// /api/trips/generate. (This was a Server Component with plain <button>s
-// in the first scaffold, which is why nothing selected when clicked.)
+// 03 — Travel Profile ("Travel DNA"). A Client Component because every
+// control here is interactive: selections have to be held in state and
+// sent to /api/trips/generate. Once generation starts this same route
+// renders the AI Thinking trace (step 3 of the planner) in place.
 
-const TRAVELER_TYPES = [
-  "Explorer",
-  "Foodie",
-  "Culture lover",
-  "Nature",
-  "Relaxed",
-  "Photographer",
-  "Shopper",
-  "Nightlife",
+// `value` is what the API and the AI prompt receive — keep these strings
+// stable. `hint` is display copy only.
+const TRAVELER_TYPES: { value: string; hint: string; icon: LucideIcon }[] = [
+  { value: "Explorer", hint: "Wandering off the map", icon: Compass },
+  { value: "Foodie", hint: "Markets, bistros, tastings", icon: UtensilsCrossed },
+  { value: "Culture lover", hint: "Museums & architecture", icon: Landmark },
+  { value: "Nature", hint: "Parks, trails, fresh air", icon: Trees },
+  { value: "Relaxed", hint: "Terraces & slow afternoons", icon: Coffee },
+  { value: "Photographer", hint: "Viewpoints & golden hour", icon: Camera },
+  { value: "Shopper", hint: "Boutiques & makers", icon: ShoppingBag },
+  { value: "Nightlife", hint: "Bars, music, late nights", icon: Music },
 ];
 
 const FOOD_PREFERENCES = [
@@ -58,16 +80,17 @@ const BUDGET_TIERS: readonly BudgetOption<BudgetTier>[] = [
   },
 ];
 
-const PACES: { value: Pace; label: string }[] = [
-  { value: "relaxed", label: "Relaxed" },
-  { value: "balanced", label: "Balanced" },
-  { value: "packed", label: "Packed" },
+// Stop counts match the pace rule in lib/ai/prompts.ts — keep them in sync.
+const PACES: { value: Pace; label: string; hint: string }[] = [
+  { value: "relaxed", label: "Relaxed", hint: "3–4 stops a day, time to linger" },
+  { value: "balanced", label: "Balanced", hint: "A steady mix of sights and breaks" },
+  { value: "packed", label: "Packed", hint: "6–8 stops a day, see it all" },
 ];
 
-const WALKING: { value: WalkingTolerance; label: string }[] = [
-  { value: "low", label: "Low" },
-  { value: "medium", label: "Medium" },
-  { value: "high", label: "High" },
+const WALKING: { value: WalkingTolerance; label: string; hint: string }[] = [
+  { value: "low", label: "Low", hint: "Short hops between stops" },
+  { value: "medium", label: "Medium", hint: "Happy to walk between nearby spots" },
+  { value: "high", label: "High", hint: "Walk all day, the city on foot" },
 ];
 
 function ProfileForm() {
@@ -100,25 +123,25 @@ function ProfileForm() {
     );
   }
 
-  async function handleGenerate() {
-    const request: TripRequest = {
-      destination,
-      startDate,
-      endDate,
-      travelers,
-      profile: {
-        travelerTypes,
-        budgetTier,
-        pace,
-        walkingTolerance,
-        foodPreferences: foodPreferences.map((f) => f.toLowerCase()),
-        dislikes: dislikes
-          .split(",")
-          .map((d) => d.trim())
-          .filter(Boolean),
-      },
-    };
+  const request: TripRequest = {
+    destination,
+    startDate,
+    endDate,
+    travelers,
+    profile: {
+      travelerTypes,
+      budgetTier,
+      pace,
+      walkingTolerance,
+      foodPreferences: foodPreferences.map((f) => f.toLowerCase()),
+      dislikes: dislikes
+        .split(",")
+        .map((d) => d.trim())
+        .filter(Boolean),
+    },
+  };
 
+  async function handleGenerate() {
     // No pre-flight paywall check: the trip gets built first so the
     // traveler watches it happen, and /api/trips/generate decides at the
     // end whether to hand over the itinerary or just a preview plus a
@@ -127,136 +150,230 @@ function ProfileForm() {
   }
 
   if (status === "generating") {
-    return <AiThinking destination={destination} />;
+    return <AiThinking request={request} />;
   }
 
+  const dna = describeTravelDna({ travelerTypes, pace, budgetTier, walkingTolerance, foodPreferences });
+  const canGenerate = travelerTypes.length > 0;
+  const stepOneHref = `/create-trip?destination=${encodeURIComponent(destination)}`;
+
   return (
-    <main className="mx-auto max-w-xl px-6 py-16">
-      <p className="font-mono text-xs uppercase tracking-widest text-accent">
-        Let&apos;s get to know how you travel
-      </p>
-      <h1 className="mt-3 font-display text-3xl font-semibold">
-        What kind of traveler are you?
-      </h1>
-      <p className="mt-3 text-sm text-muted">
-        {destination} · {startDate} → {endDate} · {travelers}{" "}
-        {travelers === 1 ? "traveler" : "travelers"}
-      </p>
+    <main className="mx-auto max-w-[1440px] px-5 pb-32 lg:px-12">
+      <PlannerProgress
+        current={2}
+        title="Discovering your travel DNA"
+        subtitle={
+          <>
+            {destination} · {formatTripRange(startDate, endDate)} · {travelers}{" "}
+            {travelers === 1 ? "traveler" : "travelers"}
+          </>
+        }
+        hrefs={{ 1: stepOneHref }}
+      />
 
-      {/* Near the top, right under the destination/dates line: budget
-          shapes almost every downstream recommendation (see
-          buildTripUserPrompt), so it comes before the multi-select
-          preference chips rather than after them. */}
-      <Section label="Budget">
-        <BudgetSelector options={BUDGET_TIERS} value={budgetTier} onChange={setBudgetTier} />
-      </Section>
-
-      <Section label="Pick any that fit" count={travelerTypes.length}>
-        <div className="flex flex-wrap gap-2">
-          {TRAVELER_TYPES.map((type) => (
-            <Chip
-              key={type}
-              label={type}
-              selected={travelerTypes.includes(type)}
-              onClick={() => toggle(setTravelerTypes, type)}
+      <div className="grid items-start gap-6 lg:grid-cols-12">
+        <div className="flex flex-col gap-5 lg:col-span-7">
+          <section className="relative overflow-hidden rounded-lg bg-surface p-6 shadow-card">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute right-0 top-0 h-48 w-48 rounded-bl-full bg-gradient-to-bl from-warm-soft/70 to-transparent"
             />
-          ))}
-        </div>
-      </Section>
+            <div className="relative flex items-start gap-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-deep text-sunset shadow-card">
+                <Sparkles className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="flex items-center gap-2 font-mono text-[0.65rem] font-bold uppercase tracking-widest text-warm">
+                  RoamAI
+                  <span className="roam-pulse h-1.5 w-1.5 rounded-full bg-sage" aria-hidden="true" />
+                </p>
+                <p className="mt-1 font-display text-lg font-semibold text-accent">
+                  Let&apos;s get to know how you actually travel.
+                </p>
+                <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted">
+                  No generic tour-bus stops. Your answers decide how many places fit in a day,
+                  where you eat, and what gets left out.
+                </p>
+              </div>
+            </div>
+          </section>
 
-      <Section label="Pace">
-        <div className="flex flex-wrap gap-2">
-          {PACES.map((p) => (
-            <Chip
-              key={p.value}
-              label={p.label}
-              selected={pace === p.value}
-              onClick={() => setPace(p.value)}
+          <Section
+            n="01"
+            eyebrow="Personas"
+            title="What kind of traveler are you?"
+            badge={canGenerate ? `${travelerTypes.length} selected` : "Pick at least 1"}
+            badgeTone={canGenerate ? "accent" : "warm"}
+          >
+            <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2 sm:grid-cols-3">
+              {TRAVELER_TYPES.map((type) => (
+                <PersonaCard
+                  key={type.value}
+                  label={type.value}
+                  hint={type.hint}
+                  icon={type.icon}
+                  selected={travelerTypes.includes(type.value)}
+                  onClick={() => toggle(setTravelerTypes, type.value)}
+                />
+              ))}
+            </div>
+          </Section>
+
+          {/* Budget shapes almost every downstream recommendation (see
+              buildTripUserPrompt), so it comes right after who you are. */}
+          <Section n="02" eyebrow="Budget" title="How do you like to spend?">
+            <BudgetSelector options={BUDGET_TIERS} value={budgetTier} onChange={setBudgetTier} />
+          </Section>
+
+          <Section n="03" eyebrow="Rhythm" title="Pace and footwork">
+            <OptionGroup label="Daily pace" options={PACES} value={pace} onChange={setPace} />
+            <div className="mt-5">
+              <OptionGroup
+                label="How much walking?"
+                options={WALKING}
+                value={walkingTolerance}
+                onChange={setWalkingTolerance}
+              />
+            </div>
+          </Section>
+
+          <Section
+            n="04"
+            eyebrow="Food"
+            title="What do you like to eat?"
+            badge={foodPreferences.length ? `${foodPreferences.length} selected` : "Optional"}
+          >
+            <div className="flex flex-wrap gap-2">
+              {FOOD_PREFERENCES.map((food) => (
+                <Chip
+                  key={food}
+                  label={food}
+                  selected={foodPreferences.includes(food)}
+                  onClick={() => toggle(setFoodPreferences, food)}
+                />
+              ))}
+            </div>
+          </Section>
+
+          <Section n="05" eyebrow="Avoid" title="Anything you'd rather skip?" badge="Optional">
+            <input
+              value={dislikes}
+              onChange={(e) => setDislikes(e.target.value)}
+              aria-label="Things to avoid, separated by commas"
+              placeholder="crowds, seafood, early mornings"
+              maxLength={300}
+              className="w-full rounded border border-border bg-surface px-4 py-3 text-sm outline-none transition-shadow placeholder:text-muted/60 focus:border-accent focus:ring-4 focus:ring-accent/10"
             />
-          ))}
-        </div>
-      </Section>
+            <p className="mt-2 text-xs text-muted">Separate with commas.</p>
+          </Section>
 
-      <Section label="How much walking?">
-        <div className="flex flex-wrap gap-2">
-          {WALKING.map((w) => (
-            <Chip
-              key={w.value}
-              label={w.label}
-              selected={walkingTolerance === w.value}
-              onClick={() => setWalkingTolerance(w.value)}
-            />
-          ))}
+          <section className="relative flex items-start gap-3.5 overflow-hidden rounded-lg bg-gradient-to-br from-accent-soft/70 via-surface to-warm-soft/40 p-5 shadow-card">
+            <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-warm" />
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface text-warm shadow-card">
+              <Fingerprint className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="font-mono text-[0.65rem] font-bold uppercase tracking-widest text-accent">
+                Why RoamAI asks
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-muted">
+                Most itinerary tools cram every sight into one long day. Your pace sets how
+                many stops each day holds, and every stop comes with a reason tied to the
+                answers on this page.
+              </p>
+            </div>
+          </section>
         </div>
-      </Section>
 
-      <Section label="Food" count={foodPreferences.length}>
-        <div className="flex flex-wrap gap-2">
-          {FOOD_PREFERENCES.map((food) => (
-            <Chip
-              key={food}
-              label={food}
-              selected={foodPreferences.includes(food)}
-              onClick={() => toggle(setFoodPreferences, food)}
-            />
-          ))}
-        </div>
-      </Section>
-
-      <Section label="Anything you'd rather avoid?">
-        <input
-          value={dislikes}
-          onChange={(e) => setDislikes(e.target.value)}
-          placeholder="crowds, seafood, early mornings"
-          className="w-full rounded-md border border-border bg-transparent px-4 py-3 text-sm outline-none focus:border-accent"
-        />
-      </Section>
+        <aside className="lg:sticky lg:top-24 lg:col-span-5">
+          <TravelDnaCard dna={dna} destination={destination} interests={travelerTypes.length} />
+        </aside>
+      </div>
 
       {error ? (
-        <p className="mt-8 rounded-md border border-warm bg-warm-soft px-4 py-3 text-sm text-warm">
+        <p
+          role="alert"
+          className="fixed inset-x-5 bottom-24 z-30 mx-auto max-w-xl rounded-md border border-warm bg-warm-soft px-4 py-3 text-sm text-warm shadow-lift"
+        >
           {error}
         </p>
       ) : null}
 
-      <button
-        type="button"
-        onClick={handleGenerate}
-        disabled={travelerTypes.length === 0}
-        className="group mt-10 inline-flex w-full items-center justify-center gap-2 rounded-md bg-accent px-6 py-3 font-medium text-paper transition-[opacity,transform] duration-200 ease-out hover:scale-[1.01] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 sm:w-auto"
-      >
-        Build my trip
-        <ArrowRight
-          aria-hidden="true"
-          className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1 group-disabled:translate-x-0"
-        />
-      </button>
-      {travelerTypes.length === 0 ? (
-        <p className="mt-3 text-xs text-muted">
-          Pick at least one traveler type so the AI has something to work with.
-        </p>
-      ) : null}
+      <PlannerActionBar
+        start={
+          <Link
+            href={stepOneHref}
+            className="inline-flex items-center gap-1.5 rounded px-3 py-2 font-display text-sm font-semibold text-muted transition-colors hover:bg-accent-soft hover:text-accent"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            <span className="sr-only sm:not-sr-only">Back to destination</span>
+          </Link>
+        }
+        end={
+          <>
+            <span className="hidden text-right md:block" aria-live="polite">
+              <span className="block font-mono text-[0.6rem] font-bold uppercase tracking-widest text-muted">
+                {canGenerate ? "Your travel DNA" : "One more thing"}
+              </span>
+              <span className="block font-display text-sm font-bold text-accent">
+                {canGenerate ? dna.title : "Pick a traveler type to continue"}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={!canGenerate}
+              className="group inline-flex items-center gap-2 rounded bg-accent px-5 py-3 font-display text-sm font-semibold text-paper shadow-card transition-transform hover:bg-deep active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100"
+            >
+              Build my trip
+              <ArrowRight
+                aria-hidden="true"
+                className="h-4 w-4 text-sunset transition-transform duration-300 group-hover:translate-x-1 group-disabled:translate-x-0"
+              />
+            </button>
+          </>
+        }
+      />
     </main>
   );
 }
 
 function Section({
-  label,
-  count,
+  n,
+  eyebrow,
+  title,
+  badge,
+  badgeTone = "muted",
   children,
 }: {
-  label: string;
-  /** Number of selections, shown beside the label for multi-select groups. */
-  count?: number;
+  n: string;
+  eyebrow: string;
+  title: string;
+  badge?: string;
+  badgeTone?: "muted" | "accent" | "warm";
   children: React.ReactNode;
 }) {
+  const tone =
+    badgeTone === "accent"
+      ? "bg-accent text-paper"
+      : badgeTone === "warm"
+        ? "bg-warm-soft text-warm"
+        : "bg-accent-soft text-muted";
   return (
-    <section className="mt-10">
-      <div className="flex items-baseline gap-3">
-        <h2 className="font-mono text-xs uppercase tracking-widest text-muted">
-          {label}
-        </h2>
-        {count ? (
-          <span className="font-mono text-xs text-accent">{count} selected</span>
+    <section className="rounded-lg bg-surface p-5 shadow-card sm:p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-mono text-[0.65rem] font-bold uppercase tracking-widest text-muted">
+            {n} / {eyebrow}
+          </p>
+          <h2 className="mt-0.5 font-display text-lg font-semibold text-accent">{title}</h2>
+        </div>
+        {badge ? (
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 font-mono text-[0.65rem] font-bold transition-colors ${tone}`}
+          >
+            {badge}
+          </span>
         ) : null}
       </div>
       <div className="mt-4">{children}</div>
@@ -264,11 +381,102 @@ function Section({
   );
 }
 
-// The selected state has to land instantly and read from across the room:
-// a colour swap alone was too quiet to feel like a response to the tap.
-// Now selection also changes the chip's *shape* (a checkmark slides in)
-// and gives tactile press feedback, and the transition is short enough
-// that the chip is fully filled before a finger lifts.
+// Selection changes shape as well as colour (indicator bar, filled icon
+// tile, checkmark) and gives press feedback, so a tap reads instantly.
+function PersonaCard({
+  label,
+  hint,
+  icon: Icon,
+  selected,
+  onClick,
+}: {
+  label: string;
+  hint: string;
+  icon: LucideIcon;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={`group relative flex items-start gap-3 overflow-hidden rounded-md bg-surface p-3.5 text-left ring-1 transition-[box-shadow,transform] duration-150 ease-out active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+        selected ? "shadow-lift ring-accent/40" : "shadow-card ring-border hover:shadow-lift"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`absolute inset-y-0 left-0 w-1 transition-colors ${selected ? "bg-warm" : "bg-transparent"}`}
+      />
+      <span
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded transition-colors ${
+          selected ? "bg-accent text-sunset" : "bg-accent-soft text-muted group-hover:text-accent"
+        }`}
+      >
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <span className="min-w-0 pr-3">
+        <span className="block font-display text-sm font-semibold text-accent">{label}</span>
+        <span className="block text-xs leading-snug text-muted">{hint}</span>
+      </span>
+      <Check
+        aria-hidden="true"
+        strokeWidth={3}
+        className={`absolute right-2.5 top-2.5 h-3.5 w-3.5 text-warm transition-[opacity,transform] duration-150 ${
+          selected ? "scale-100 opacity-100" : "scale-50 opacity-0"
+        }`}
+      />
+    </button>
+  );
+}
+
+function OptionGroup<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: T; label: string; hint: string }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div role="group" aria-label={label}>
+      <p className="font-display text-sm font-semibold text-ink">{label}</p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+        {options.map((option) => {
+          const selected = option.value === value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onChange(option.value)}
+              className={`rounded-md px-3.5 py-3 text-left transition-[background-color,box-shadow,transform] duration-150 active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                selected
+                  ? "bg-accent text-paper shadow-lift"
+                  : "bg-accent-soft/50 text-ink hover:bg-accent-soft"
+              }`}
+            >
+              <span className="flex items-center justify-between gap-2 font-display text-sm font-semibold">
+                {option.label}
+                {selected ? (
+                  <span className="h-1.5 w-1.5 rounded-full bg-sunset" aria-hidden="true" />
+                ) : null}
+              </span>
+              <span className={`mt-0.5 block text-xs ${selected ? "text-accent-soft/90" : "text-muted"}`}>
+                {option.hint}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Chip({
   label,
   selected,
@@ -283,21 +491,169 @@ function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+      className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 font-display text-sm transition-[background-color,color,box-shadow,transform] duration-150 ease-out active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
         selected
-          ? "border-accent bg-accent font-medium text-paper shadow-sm"
-          : "border-border hover:border-accent hover:text-accent"
+          ? "bg-accent font-semibold text-paper shadow-card"
+          : "bg-accent-soft/60 text-ink hover:bg-accent-soft hover:text-accent"
       }`}
     >
       <Check
         aria-hidden="true"
         strokeWidth={3}
-        className={`-ml-1 h-3.5 w-3.5 transition-all duration-150 ease-out ${
-          selected ? "w-3.5 opacity-100" : "w-0 opacity-0"
+        className={`-ml-1 h-3.5 transition-all duration-150 ease-out ${
+          selected ? "w-3.5 text-sunset opacity-100" : "w-0 opacity-0"
         }`}
       />
       {label}
     </button>
+  );
+}
+
+// The live Travel DNA card from the design system. Every value on it is
+// read straight from the selections on this page — no invented "match"
+// percentages — so it reflects exactly what the planner will receive.
+const ARCHETYPES: Record<string, string> = {
+  Explorer: "Explorer",
+  Foodie: "Epicurean",
+  "Culture lover": "Culture Seeker",
+  Nature: "Nature Wanderer",
+  Relaxed: "Slow Traveler",
+  Photographer: "Light Chaser",
+  Shopper: "Market Browser",
+  Nightlife: "Night Owl",
+};
+const PACE_WORD: Record<Pace, string> = {
+  relaxed: "Unhurried",
+  balanced: "Curious",
+  packed: "Energetic",
+};
+const LEVEL: Record<string, number> = {
+  budget: 33,
+  comfort: 66,
+  premium: 100,
+  relaxed: 33,
+  balanced: 66,
+  packed: 100,
+  low: 33,
+  medium: 66,
+  high: 100,
+};
+
+function capitalize(word: string) {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+function describeTravelDna(p: {
+  travelerTypes: string[];
+  pace: Pace;
+  budgetTier: BudgetTier;
+  walkingTolerance: WalkingTolerance;
+  foodPreferences: string[];
+}) {
+  const primary = p.travelerTypes[0];
+  const title = primary
+    ? `The ${PACE_WORD[p.pace]} ${ARCHETYPES[primary] ?? primary}`
+    : "Your travel DNA";
+  const food = p.foodPreferences.length
+    ? ` and a taste for ${p.foodPreferences.map((f) => f.toLowerCase()).join(", ")} food`
+    : "";
+  const summary = primary
+    ? `You travel for ${p.travelerTypes.map((t) => t.toLowerCase()).join(", ")}, at a ${p.pace} pace on a ${p.budgetTier} budget, with ${p.walkingTolerance} walking${food}.`
+    : "Pick at least one traveler type and your profile takes shape here.";
+  const metrics = [
+    { label: "Budget", value: LEVEL[p.budgetTier], caption: capitalize(p.budgetTier), color: "bg-warm" },
+    { label: "Pace", value: LEVEL[p.pace], caption: capitalize(p.pace), color: "bg-accent" },
+    { label: "Walking", value: LEVEL[p.walkingTolerance], caption: capitalize(p.walkingTolerance), color: "bg-sage" },
+    {
+      label: "Interests",
+      value: Math.round((p.travelerTypes.length / TRAVELER_TYPES.length) * 100),
+      caption: `${p.travelerTypes.length} of ${TRAVELER_TYPES.length}`,
+      color: "bg-sunset",
+    },
+  ];
+  return { title, summary, metrics };
+}
+
+function TravelDnaCard({
+  dna,
+  destination,
+  interests,
+}: {
+  dna: ReturnType<typeof describeTravelDna>;
+  destination: string;
+  interests: number;
+}) {
+  return (
+    <div className="relative overflow-hidden rounded-lg bg-surface p-6 shadow-lift">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-warm-soft/70 blur-2xl"
+      />
+      <div className="relative flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-mono text-[0.65rem] font-bold uppercase tracking-widest text-warm">
+            Generated archetype
+          </p>
+          {/* Keyed on the title so each change replays the entrance —
+              the card visibly reacts to every choice. */}
+          <h2
+            key={dna.title}
+            className="roam-rise mt-1 font-display text-2xl font-bold tracking-tight text-accent"
+            aria-live="polite"
+          >
+            {dna.title}
+          </h2>
+        </div>
+        <span className="rounded-md bg-accent-soft p-2 text-accent">
+          <Fingerprint className="h-5 w-5" aria-hidden="true" />
+        </span>
+      </div>
+
+      <div className="relative mt-4 h-36 overflow-hidden rounded-md bg-gradient-to-br from-deep via-accent to-warm">
+        <RouteArt className="absolute inset-0 h-full w-full" />
+        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-deep/80 to-transparent px-3 pb-3 pt-8 text-paper">
+          <span className="flex min-w-0 items-center gap-1.5 font-display text-xs font-semibold">
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-sunset" aria-hidden="true" />
+            <span className="truncate">Built for {destination}</span>
+          </span>
+          <span className="shrink-0 rounded-full bg-paper/20 px-2 py-0.5 font-mono text-[0.65rem] font-bold backdrop-blur-md">
+            {interests} {interests === 1 ? "interest" : "interests"}
+          </span>
+        </div>
+      </div>
+
+      <p className="relative mt-4 rounded bg-accent-soft/60 p-4 text-sm leading-relaxed text-ink">
+        {dna.summary}
+      </p>
+
+      <div className="relative mt-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="font-mono text-[0.65rem] font-bold uppercase tracking-widest text-muted">
+            Profile settings
+          </p>
+          <p className="font-display text-[0.7rem] font-semibold text-accent">Updates live</p>
+        </div>
+        {dna.metrics.map((m) => (
+          <div key={m.label}>
+            <div className="flex justify-between text-xs">
+              <span className="text-ink">{m.label}</span>
+              <span className="font-display font-bold text-accent">{m.caption}</span>
+            </div>
+            <div className="mt-1 h-2 overflow-hidden rounded-full bg-accent-soft">
+              <div
+                className={`h-full rounded-full ${m.color} transition-[width] duration-500 ease-out`}
+                style={{ width: `${m.value}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="relative mt-5 flex items-center gap-2 text-xs text-muted">
+        <span className="h-2 w-2 shrink-0 rounded-full bg-sage" aria-hidden="true" />
+        Your {destination} itinerary is built from this profile.
+      </p>
+    </div>
   );
 }
 

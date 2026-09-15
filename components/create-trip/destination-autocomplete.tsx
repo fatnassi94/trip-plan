@@ -126,7 +126,7 @@ export function DestinationAutocomplete({
         required={required}
         value={value}
         placeholder="Paris, France"
-        className="w-full rounded-md border border-border bg-transparent px-4 py-3 outline-none focus:border-accent"
+        className="w-full rounded border border-border bg-surface px-4 py-3 font-display text-base font-semibold text-accent outline-none transition-shadow placeholder:font-normal placeholder:text-muted/60 focus:border-accent focus:ring-4 focus:ring-accent/10"
         onChange={(e) => {
           setValue(e.target.value);
           setOpen(true);
@@ -157,7 +157,7 @@ export function DestinationAutocomplete({
           id={listboxId}
           role="listbox"
           aria-label="Matching destinations"
-          className="absolute z-30 mt-2 max-h-64 w-full overflow-y-auto rounded-md border border-border bg-paper py-1 shadow-lg"
+          className="absolute z-30 mt-2 max-h-64 w-full overflow-y-auto rounded-md bg-surface py-1 shadow-float ring-1 ring-border"
         >
           {results.length === 0 ? (
             <li role="status" className="px-4 py-3 text-sm text-muted">

@@ -48,27 +48,32 @@ export function BudgetSelector<T extends string>({
   const sliderRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="w-full max-w-sm">
-      <input
-        ref={sliderRef}
-        type="range"
-        role="slider"
-        min={0}
-        max={options.length - 1}
-        step={1}
-        value={selectedIndex}
-        aria-label={label}
-        aria-valuetext={`${selected.label} (${selected.hint})`}
-        onChange={(e) => onChange(options[Number(e.target.value)].value)}
-        className="roam-slider w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
-        style={{
-          background: `linear-gradient(to right, hsl(var(--accent)) ${percent}%, hsl(var(--line)) ${percent}%)`,
-        }}
-      />
+    <div className="w-full">
+      <div className="px-2">
+        <input
+          ref={sliderRef}
+          type="range"
+          role="slider"
+          min={0}
+          max={options.length - 1}
+          step={1}
+          value={selectedIndex}
+          aria-label={label}
+          aria-valuetext={`${selected.label} (${selected.hint})`}
+          onChange={(e) => onChange(options[Number(e.target.value)].value)}
+          className="roam-slider w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
+          style={{
+            background: `linear-gradient(to right, hsl(var(--warm)) ${percent}%, hsl(var(--accent-soft)) ${percent}%)`,
+          }}
+        />
+      </div>
 
       {/* Tick labels double as click targets — clicking one jumps the
           slider straight to that tier, same as dragging the handle to it. */}
-      <div className="mt-2 flex justify-between">
+      <div
+        className="mt-3 grid gap-2"
+        style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+      >
         {options.map((option, i) => (
           <button
             key={option.value}
@@ -83,8 +88,10 @@ export function BudgetSelector<T extends string>({
             }}
             aria-hidden="true"
             tabIndex={-1}
-            className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
-              i === selectedIndex ? "font-medium text-accent" : "text-muted hover:text-accent"
+            className={`flex flex-col items-center gap-0.5 rounded px-2 py-2 text-xs transition-colors ${
+              i === selectedIndex
+                ? "bg-accent-soft font-display font-semibold text-accent"
+                : "text-muted hover:text-accent"
             }`}
           >
             {option.label}
@@ -93,7 +100,7 @@ export function BudgetSelector<T extends string>({
         ))}
       </div>
 
-      <p aria-live="polite" className="mt-3 text-sm text-ink/75">
+      <p aria-live="polite" className="mt-3 rounded bg-accent-soft/50 px-3 py-2.5 text-sm text-muted">
         {selected.description}
       </p>
     </div>

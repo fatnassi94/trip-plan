@@ -35,35 +35,26 @@
   }
 }
 
-/* RoamAI design tokens — warm linen paper + route teal, matching the
-   project plan's "modern travel magazine" direction. Light values live on
-   :root; dark values only ever redefine the same custom properties. */
+/* RoamAI design tokens — "Editorial Voyage". A single, light editorial
+   look: the design system defines no dark palette, so none is invented
+   here. Values are HSL triples consumed by tailwind.config.ts. */
 :root {
-  --ink: 220 17% 11%;
-  --paper: 42 24% 92%;
-  --line: 42 20% 78%;
-  --muted: 42 10% 45%;
-  --accent: 174 80% 27%;
-  --accent-soft: 170 35% 90%;
-  --warm: 30 68% 46%;
-  --warm-soft: 36 60% 88%;
+  --ink: 222 42% 13%; /* on-surface #131b2e */
+  --paper: 257 100% 99%; /* canvas #faf8ff */
+  --surface: 0 0% 100%; /* cards #ffffff */
+  --line: 230 18% 88%; /* hairline borders */
+  --muted: 228 7% 29%; /* on-surface-variant #44464e */
+  --accent: 220 60% 20%; /* deep cobalt #142850 */
+  --accent-soft: 231 100% 96%; /* surface-container #eaedff */
+  --warm: 7 64% 41%; /* terracotta #ab3425 */
+  --warm-soft: 8 100% 92%; /* #ffdad4 */
+  --sunset: 8 96% 67%; /* #fc6f5a */
+  --sage: 155 69% 59%; /* #4edea3 */
+  --deep: 219 100% 11%; /* #001337 */
 
   /* Motion. One easing curve for the whole product so every transition
      feels like it came from the same hand. */
   --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --ink: 42 24% 92%;
-    --paper: 220 20% 8%;
-    --line: 220 14% 22%;
-    --muted: 42 10% 60%;
-    --accent: 174 55% 58%;
-    --accent-soft: 174 40% 18%;
-    --warm: 36 70% 62%;
-    --warm-soft: 36 40% 20%;
-  }
 }
 
 * {
@@ -284,6 +275,45 @@ body {
   }
 }
 
+@layer utilities {
+  /* Progress fills (components/trip/planner-progress.tsx) grow in from
+     the left on arrival, so each step change reads as forward motion. */
+  @keyframes roam-grow {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+  .roam-grow {
+    transform-origin: left center;
+    animation: roam-grow 1.1s var(--ease-out-soft) both;
+  }
+
+  /* A light sweep across whatever is actively working — the AI Thinking
+     progress bar and the step currently in progress. */
+  @keyframes roam-shimmer {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+  .roam-shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .roam-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+    animation: roam-shimmer 1.8s ease-in-out infinite;
+  }
+}
+
 /* One switch turns the whole motion layer off. */
 @media (prefers-reduced-motion: reduce) {
   .roam-blob-a,
@@ -294,8 +324,13 @@ body {
   .roam-rise,
   .roam-marquee,
   .roam-kenburns,
-  .roam-pulse {
+  .roam-pulse,
+  .roam-grow {
     animation: none !important;
+  }
+
+  .roam-shimmer::after {
+    display: none;
   }
 
   .roam-rise,
