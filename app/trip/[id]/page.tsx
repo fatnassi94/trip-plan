@@ -24,6 +24,7 @@ import { useTrip } from "@/components/trip/use-trip";
 import { formatTripDay, formatTripRange } from "@/lib/date";
 import { formatDuration, isMapped, summarizeDay } from "@/lib/itinerary";
 import { cacheTrip } from "@/lib/trip-store";
+import { estimateWalkingKm } from "@/lib/trip-rules";
 import type { Trip } from "@/types/trip";
 
 // MapLibre touches `window` at import, so it only loads in the browser.
@@ -115,6 +116,7 @@ export default function TripOverviewPage() {
   const allItems = trip.days.flatMap((d) => d.items);
   const summary = summarizeDay(day);
   const dayDate = formatTripDay(trip.startDate, day.day);
+  const walkingKm = estimateWalkingKm(day);
 
   function handleApplied(next: Trip) {
     setEdited(next);
@@ -280,6 +282,11 @@ export default function TripOverviewPage() {
                       </span>
                     ) : null}
                     <span>{formatDuration(summary.plannedMinutes)} planned</span>
+                    {walkingKm != null ? (
+                      <span title="Estimated from the distance between stops">
+                        ~{walkingKm.toFixed(1)} km walking (est.)
+                      </span>
+                    ) : null}
                   </p>
                 </div>
               </div>

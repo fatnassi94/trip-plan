@@ -37,6 +37,18 @@ describe("generateTrip", () => {
     expect(generateJSON).toHaveBeenCalledTimes(2);
   });
 
+  it("repairs a trip that breaks the traveler's hard rules", async () => {
+    const request = makeTripRequest({
+      profile: { ...makeTripRequest().profile, constraints: { earliestStart: "10:00" } },
+    });
+    const later = makeTrip();
+    later.days[0].items[0].start = "10:00"; // castle now 10:00–11:30, clear of lunch
+    generateJSON.mockResolvedValueOnce(makeTrip()).mockResolvedValueOnce(later);
+
+    await expect(generateTrip(request)).resolves.toEqual(later);
+    expect(generateJSON.mock.calls[1][0].system).toMatch(/before the 10:00 earliest start/);
+  });
+
   it("refuses an unknown provider", async () => {
     vi.stubEnv("AI_PROVIDER", "mystery-model");
     await expect(generateTrip(makeTripRequest())).rejects.toThrow(/Unknown AI_PROVIDER/);

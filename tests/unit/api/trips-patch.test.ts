@@ -11,7 +11,7 @@ import { replaceDay } from "@/lib/itinerary";
 import { createSessionClient } from "@/lib/supabase/server";
 import { argsOf, configureEnv, fakeSupabase, type QueryResult } from "@/tests/unit/helpers/api";
 import { makeRainyDay } from "@/tests/fixtures/assistant";
-import { makeTrip } from "@/tests/fixtures/trip";
+import { makeTrip, makeTripRequest } from "@/tests/fixtures/trip";
 
 const TRIP_ID = "7d8f0f5e-2b1c-4c7e-9a51-3f0f6a2d9b10";
 const trip = makeTrip();
@@ -74,6 +74,17 @@ describe("PATCH /api/trips/[id] (apply an assistant change)", () => {
     expect(res.status).toBe(422);
     expect((await res.json()).error).toMatch(/schedule/i);
     expect(session.queries.trips).toHaveLength(1); // the read, no update
+  });
+
+  it("refuses a day that breaks the traveler's own hard rules", async () => {
+    const withRules = { ...trip, profile: { ...makeTripRequest().profile, constraints: { maxActivityMinutes: 100 } } };
+    const session = setup({ stored: { data: { itinerary: withRules }, error: null } });
+
+    const res = await patch({ day: makeRainyDay() }); // adds a 120-minute museum visit
+
+    expect(res.status).toBe(422);
+    expect((await res.json()).details).toMatch(/lasts 120 min, over the 100 min limit/);
+    expect(session.queries.trips).toHaveLength(1);
   });
 
   it("saves the whole re-validated itinerary on the owner's row", async () => {

@@ -15,6 +15,7 @@ import { makeTrip, makeTripRequest } from "@/tests/fixtures/trip";
 
 const request = makeTripRequest();
 const trip = makeTrip();
+const savedTrip = { ...trip, profile: request.profile };
 
 function setup({
   user = null,
@@ -54,6 +55,30 @@ describe("POST /api/trips/generate", () => {
     expect(generateTrip).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["latest end before earliest start", { earliestStart: "18:00", latestEnd: "09:00" }],
+    ["zero walking limit", { maxWalkingKmPerDay: 0 }],
+    ["malformed time", { earliestStart: "9am" }],
+  ])("rejects hard constraints with a %s", async (_label, constraints) => {
+    setup();
+    const res = await POST(jsonRequest({ ...request, profile: { ...request.profile, constraints } }));
+    expect(res.status).toBe(400);
+    expect(generateTrip).not.toHaveBeenCalled();
+  });
+
+  it("saves the traveler's Travel DNA with the trip, never the model's version of it", async () => {
+    const profile = { ...request.profile, localness: 5, constraints: { earliestStart: "09:00" } };
+    const { admin } = setup({ user: { id: "user-1" }, subscription: "active" });
+    vi.mocked(generateTrip).mockResolvedValue({ ...trip, profile: { ...profile, constraints: {} } } as never);
+
+    await POST(jsonRequest({ ...request, profile }));
+
+    expect(generateTrip).toHaveBeenCalledWith({ ...request, profile });
+    expect(argsOf(admin.queries.trips[0], "insert")[0][0]).toMatchObject({
+      itinerary: { profile: { constraints: { earliestStart: "09:00" } } },
+    });
+  });
+
   it("returns 503 when no AI key is configured", async () => {
     configureEnv({ ai: false });
     setup();
@@ -67,7 +92,7 @@ describe("POST /api/trips/generate", () => {
     setup();
     const res = await POST(jsonRequest(request));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ id: null, persisted: false, locked: false, trip });
+    expect(await res.json()).toEqual({ id: null, persisted: false, locked: false, trip: savedTrip });
     expect(generateTrip).toHaveBeenCalledWith(request);
   });
 
@@ -104,7 +129,7 @@ describe("POST /api/trips/generate", () => {
   it("gives a traveler with an active plan the full trip, saved as theirs", async () => {
     const { admin } = setup({ user: { id: "user-1" }, subscription: "active" });
     const body = await (await POST(jsonRequest(request))).json();
-    expect(body).toEqual({ id: "trip-123", persisted: true, locked: false, trip });
+    expect(body).toEqual({ id: "trip-123", persisted: true, locked: false, trip: savedTrip });
     expect(argsOf(admin.queries.trips[0], "insert")[0][0]).toMatchObject({ user_id: "user-1" });
   });
 
@@ -119,6 +144,6 @@ describe("POST /api/trips/generate", () => {
   it("hands back the full trip when saving fails, since there is nowhere to park it", async () => {
     setup({ insert: { data: null, error: { message: "database unavailable" } } });
     const body = await (await POST(jsonRequest(request))).json();
-    expect(body).toEqual({ id: null, persisted: false, locked: false, trip });
+    expect(body).toEqual({ id: null, persisted: false, locked: false, trip: savedTrip });
   });
 });

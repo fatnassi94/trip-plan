@@ -121,3 +121,12 @@ create policy "ai_messages: owner via conversation" on ai_messages
       where ai_conversations.id = ai_messages.conversation_id and trips.user_id = auth.uid()
     )
   );
+
+-- Travel DNA (lib/travel-dna.ts, app/api/account/travel-dna): the
+-- traveler's saved profile — interests, pace, budget, walking, crowds,
+-- style sliders and hard constraints — as versioned JSON
+-- ({ version, profile, updatedAt }), so the model can grow without a
+-- migration per field. Validated in code on every read and write. The
+-- older per-field columns above (traveler_types, pace, ...) are unused.
+-- No new RLS needed: "profiles: owner read/write" already covers it.
+alter table profiles add column if not exists travel_dna jsonb;

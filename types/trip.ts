@@ -7,14 +7,36 @@
 export type BudgetTier = "budget" | "comfort" | "premium";
 export type Pace = "relaxed" | "balanced" | "packed";
 export type WalkingTolerance = "low" | "medium" | "high";
+export type CrowdTolerance = "low" | "medium" | "high";
 
+/**
+ * Rules the traveler sets that must never be broken — enforced in code by
+ * lib/trip-rules.ts, not left to the model. Every field is optional:
+ * absent means "no limit".
+ */
+export interface HardConstraints {
+  earliestStart?: string; // "HH:MM" — nothing starts before this
+  latestEnd?: string; // "HH:MM" — everything has ended by this
+  maxWalkingKmPerDay?: number; // estimated from stop coordinates
+  maxStopsPerDay?: number; // non-transit items per day
+  maxActivityMinutes?: number; // longest single non-transit item
+  avoidTags?: string[]; // lowercase category tags, e.g. "museum"
+}
+
+/** Travel DNA — see lib/travel-dna.ts for validation and wording. */
 export interface TravelerProfile {
   travelerTypes: string[]; // e.g. ["Explorer", "Foodie"]
   budgetTier: BudgetTier;
   pace: Pace;
   walkingTolerance: WalkingTolerance;
   foodPreferences: string[]; // e.g. ["local", "vegetarian"]
-  dislikes: string[]; // free text: "crowds", "seafood", ...
+  dislikes: string[]; // soft: free text the AI may bend, "crowds", "seafood", ...
+  /** 1 = tourist classics … 5 = like a local. */
+  localness?: number;
+  /** 1 = famous icons … 5 = hidden gems. */
+  discovery?: number;
+  crowdTolerance?: CrowdTolerance;
+  constraints?: HardConstraints;
 }
 
 export interface TripRequest {
@@ -61,6 +83,10 @@ export interface Trip {
   endDate: string;
   travelers: number;
   days: TripDay[];
+  /** The Travel DNA the trip was planned with — set by the server after
+   * validation (never taken from model output), so later edits can be
+   * held to the same hard constraints. Absent on older trips. */
+  profile?: TravelerProfile;
 }
 
 /**

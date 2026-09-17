@@ -43,7 +43,8 @@ const PatchSchema = z.object({ day: TripDaySchema });
 // replaces one day of the owner's saved itinerary. The day in the body is
 // treated exactly like model output — it could have been hand-crafted —
 // so the WHOLE resulting trip is re-validated (schema + business rules)
-// before anything is written. Nothing here trusts that the assistant
+// — including the traveler's own hard constraints — before anything is
+// written. Nothing here trusts that the assistant
 // route already checked it.
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   if (!isAuthConfigured()) {
@@ -86,11 +87,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   let next;
   try {
-    next = parseTripResponse(replaceDay(stored.data, parsed.data.day));
+    next = parseTripResponse(
+      replaceDay(stored.data, parsed.data.day),
+      stored.data.profile?.constraints,
+    );
   } catch (err) {
     return NextResponse.json(
       {
-        error: "These changes break the schedule rules, so they weren't saved.",
+        error: "These changes break the schedule rules or your trip rules, so they weren't saved.",
         details: err instanceof Error ? err.message : undefined,
       },
       { status: 422 },

@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { checkTripConstraints } from "@/lib/trip-rules";
+import { TravelerProfileSchema } from "@/lib/travel-dna";
+import type { HardConstraints } from "@/types/trip";
 
 // The gate every model response must pass before it's trusted. See the
 // `ai-security` and `database-security` skills: raw LLM output is
@@ -35,6 +38,7 @@ export const TripSchema = z.object({
   endDate: z.string(),
   travelers: z.number().int().min(1).max(20),
   days: z.array(TripDaySchema).min(1).max(30),
+  profile: TravelerProfileSchema.optional(),
 });
 
 export type ValidatedTrip = z.infer<typeof TripSchema>;
@@ -81,9 +85,12 @@ export function checkDayRules(day: ValidatedTripDay): string[] {
  * failure so the caller can retry/repair rather than silently saving
  * garbage — see lib/ai/provider.ts `generateTrip`.
  */
-export function parseTripResponse(raw: unknown): ValidatedTrip {
+export function parseTripResponse(raw: unknown, constraints?: HardConstraints): ValidatedTrip {
   const trip = TripSchema.parse(raw);
-  const issues = checkBusinessRules(trip);
+  const issues = [
+    ...checkBusinessRules(trip),
+    ...checkTripConstraints(trip, constraints).map((v) => v.message),
+  ];
   if (issues.length > 0) {
     throw new Error(`Trip failed business rules: ${issues.join("; ")}`);
   }
@@ -106,12 +113,19 @@ export type DayRevision = z.infer<typeof DayRevisionSchema>;
  * Parse + validate an assistant response for `expectedDay`. Throws with a
  * clear message so the caller can run a repair retry.
  */
-export function parseDayRevision(raw: unknown, expectedDay: number): DayRevision {
+export function parseDayRevision(
+  raw: unknown,
+  expectedDay: number,
+  constraints?: HardConstraints,
+): DayRevision {
   const revision = DayRevisionSchema.parse(raw);
   if (revision.day.day !== expectedDay) {
     throw new Error(`Revision must keep day ${expectedDay}, but returned day ${revision.day.day}`);
   }
-  const issues = checkDayRules(revision.day);
+  const issues = [
+    ...checkDayRules(revision.day),
+    ...checkTripConstraints({ days: [revision.day] }, constraints).map((v) => v.message),
+  ];
   if (issues.length > 0) {
     throw new Error(`Revised day failed business rules: ${issues.join("; ")}`);
   }

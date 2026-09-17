@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -13,6 +13,7 @@ import {
   Fingerprint,
   Landmark,
   Music,
+  ShieldCheck,
   ShoppingBag,
   Sparkles,
   Trees,
@@ -20,18 +21,36 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BudgetSelector, type BudgetOption } from "@/components/profile/budget-selector";
+import { ScaleSlider } from "@/components/profile/scale-slider";
 import { RouteArt } from "@/components/brand/route-art";
 import { AiThinking } from "@/components/trip/ai-thinking";
 import { PlannerActionBar } from "@/components/trip/planner-action-bar";
 import { PlannerProgress } from "@/components/trip/planner-progress";
 import { useTripGeneration } from "@/components/trip/use-trip-generation";
 import { formatTripRange } from "@/lib/date";
-import type { BudgetTier, Pace, TripRequest, WalkingTolerance } from "@/types/trip";
+import {
+  AVOID_OPTIONS,
+  DISCOVERY_LABELS,
+  LOCALNESS_LABELS,
+  describeConstraints,
+  normalizeConstraints,
+} from "@/lib/travel-dna";
+import type {
+  BudgetTier,
+  CrowdTolerance,
+  HardConstraints,
+  Pace,
+  TravelerProfile,
+  TripRequest,
+  WalkingTolerance,
+} from "@/types/trip";
 
 // 03 — Travel Profile ("Travel DNA"). A Client Component because every
-// control here is interactive: selections have to be held in state and
-// sent to /api/trips/generate. Once generation starts this same route
-// renders the AI Thinking trace (step 3 of the planner) in place.
+// control here is interactive: selections are held in state and sent to
+// /api/trips/generate. Signed-in travelers get their saved Travel DNA
+// restored and (by default) saved again, via /api/account/travel-dna.
+// Once generation starts this same route renders the AI Thinking trace
+// (step 3 of the planner) in place.
 
 // `value` is what the API and the AI prompt receive — keep these strings
 // stable. `hint` is display copy only.
@@ -93,6 +112,27 @@ const WALKING: { value: WalkingTolerance; label: string; hint: string }[] = [
   { value: "high", label: "High", hint: "Walk all day, the city on foot" },
 ];
 
+const CROWDS: { value: CrowdTolerance; label: string; hint: string }[] = [
+  { value: "low", label: "Avoid crowds", hint: "Quiet spots and off-peak times" },
+  { value: "medium", label: "Some is fine", hint: "Busy places at the right time" },
+  { value: "high", label: "Crowds are fine", hint: "Popular icons at any hour" },
+];
+
+const NO_LIMIT = { value: "", label: "No limit" };
+const START_OPTIONS = [NO_LIMIT, ...["07:00", "08:00", "09:00", "10:00", "11:00"].map((t) => ({ value: t, label: `Not before ${t}` }))];
+const END_OPTIONS = [NO_LIMIT, ...["18:00", "19:00", "20:00", "21:00", "22:00", "23:00"].map((t) => ({ value: t, label: `Done by ${t}` }))];
+const WALK_OPTIONS = [NO_LIMIT, ...[3, 5, 8, 12].map((km) => ({ value: String(km), label: `Up to ${km} km` }))];
+const STOP_OPTIONS = [NO_LIMIT, ...[2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: `Up to ${n} stops` }))];
+const DURATION_OPTIONS = [
+  NO_LIMIT,
+  { value: "60", label: "Up to 1h" },
+  { value: "90", label: "Up to 1h 30m" },
+  { value: "120", label: "Up to 2h" },
+  { value: "180", label: "Up to 3h" },
+];
+
+type AccountState = "checking" | "unavailable" | "signed-out" | "signed-in";
+
 function ProfileForm() {
   const params = useSearchParams();
 
@@ -106,9 +146,57 @@ function ProfileForm() {
   const [budgetTier, setBudgetTier] = useState<BudgetTier>("comfort");
   const [pace, setPace] = useState<Pace>("balanced");
   const [walkingTolerance, setWalkingTolerance] = useState<WalkingTolerance>("medium");
+  const [crowdTolerance, setCrowdTolerance] = useState<CrowdTolerance>("medium");
+  const [localness, setLocalness] = useState(3);
+  const [discovery, setDiscovery] = useState(3);
   const [dislikes, setDislikes] = useState("");
+  const [constraints, setConstraints] = useState<HardConstraints>({});
+
+  const [account, setAccount] = useState<AccountState>("checking");
+  const [restored, setRestored] = useState(false);
+  const [saveToAccount, setSaveToAccount] = useState(true);
+  // Any interaction before the saved Travel DNA arrives wins over it.
+  const touched = useRef(false);
 
   const { status, error, generate } = useTripGeneration();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/account/travel-dna")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((payload) => {
+        if (cancelled) return;
+        if (!payload?.configured) return setAccount("unavailable");
+        if (!payload.loggedIn) return setAccount("signed-out");
+        setAccount("signed-in");
+
+        const saved = payload.profile as TravelerProfile | null;
+        if (!saved || touched.current) return;
+        setTravelerTypes(saved.travelerTypes);
+        setFoodPreferences(
+          saved.foodPreferences.map(
+            (food) => FOOD_PREFERENCES.find((f) => f.toLowerCase() === food) ?? food,
+          ),
+        );
+        setBudgetTier(saved.budgetTier);
+        setPace(saved.pace);
+        setWalkingTolerance(saved.walkingTolerance);
+        setCrowdTolerance(saved.crowdTolerance ?? "medium");
+        setLocalness(saved.localness ?? 3);
+        setDiscovery(saved.discovery ?? 3);
+        setDislikes(saved.dislikes.join(", "));
+        setConstraints(saved.constraints ?? {});
+        setRestored(true);
+      })
+      .catch(() => {
+        if (!cancelled) setAccount("unavailable");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Functional update, not `list.includes(...)` off the render closure:
   // two taps landing in the same React batch (an easy double-tap on a
@@ -123,25 +211,48 @@ function ProfileForm() {
     );
   }
 
-  const request: TripRequest = {
-    destination,
-    startDate,
-    endDate,
-    travelers,
-    profile: {
-      travelerTypes,
-      budgetTier,
-      pace,
-      walkingTolerance,
-      foodPreferences: foodPreferences.map((f) => f.toLowerCase()),
-      dislikes: dislikes
-        .split(",")
-        .map((d) => d.trim())
-        .filter(Boolean),
-    },
+  function setRule<K extends keyof HardConstraints>(key: K, value: HardConstraints[K]) {
+    setConstraints((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function toggleAvoid(tag: string) {
+    setConstraints((prev) => {
+      const current = prev.avoidTags ?? [];
+      return {
+        ...prev,
+        avoidTags: current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag],
+      };
+    });
+  }
+
+  const profile: TravelerProfile = {
+    travelerTypes,
+    budgetTier,
+    pace,
+    walkingTolerance,
+    foodPreferences: foodPreferences.map((f) => f.toLowerCase()),
+    dislikes: dislikes
+      .split(",")
+      .map((d) => d.trim())
+      .filter(Boolean),
+    localness,
+    discovery,
+    crowdTolerance,
+    constraints: normalizeConstraints(constraints),
   };
 
+  const request: TripRequest = { destination, startDate, endDate, travelers, profile };
+
   async function handleGenerate() {
+    if (account === "signed-in" && saveToAccount) {
+      // Fire-and-forget: saving the profile must never hold up, or break,
+      // building the trip.
+      void fetch("/api/account/travel-dna", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile }),
+      }).catch(() => {});
+    }
     // No pre-flight paywall check: the trip gets built first so the
     // traveler watches it happen, and /api/trips/generate decides at the
     // end whether to hand over the itinerary or just a preview plus a
@@ -153,12 +264,17 @@ function ProfileForm() {
     return <AiThinking request={request} />;
   }
 
-  const dna = describeTravelDna({ travelerTypes, pace, budgetTier, walkingTolerance, foodPreferences });
+  const dna = describeTravelDna(profile);
   const canGenerate = travelerTypes.length > 0;
   const stepOneHref = `/create-trip?destination=${encodeURIComponent(destination)}`;
+  const selfHref = `/profile?${params.toString()}`;
 
   return (
-    <main className="mx-auto max-w-[1440px] px-5 pb-32 lg:px-12">
+    <main
+      className="mx-auto max-w-[1440px] px-5 pb-32 lg:px-12"
+      onPointerDownCapture={() => (touched.current = true)}
+      onKeyDownCapture={() => (touched.current = true)}
+    >
       <PlannerProgress
         current={2}
         title="Discovering your travel DNA"
@@ -225,7 +341,7 @@ function ProfileForm() {
             <BudgetSelector options={BUDGET_TIERS} value={budgetTier} onChange={setBudgetTier} />
           </Section>
 
-          <Section n="03" eyebrow="Rhythm" title="Pace and footwork">
+          <Section n="03" eyebrow="Rhythm" title="Pace, footwork and crowds">
             <OptionGroup label="Daily pace" options={PACES} value={pace} onChange={setPace} />
             <div className="mt-5">
               <OptionGroup
@@ -235,10 +351,34 @@ function ProfileForm() {
                 onChange={setWalkingTolerance}
               />
             </div>
+            <div className="mt-5">
+              <OptionGroup label="Crowds" options={CROWDS} value={crowdTolerance} onChange={setCrowdTolerance} />
+            </div>
+          </Section>
+
+          <Section n="04" eyebrow="Style" title="Classic or off the beaten path?">
+            <div className="flex flex-col gap-6">
+              <ScaleSlider
+                label="Tourist or local"
+                value={localness}
+                onChange={setLocalness}
+                labels={LOCALNESS_LABELS}
+                left="Tourist classics"
+                right="Like a local"
+              />
+              <ScaleSlider
+                label="Famous or hidden"
+                value={discovery}
+                onChange={setDiscovery}
+                labels={DISCOVERY_LABELS}
+                left="Famous icons"
+                right="Hidden gems"
+              />
+            </div>
           </Section>
 
           <Section
-            n="04"
+            n="05"
             eyebrow="Food"
             title="What do you like to eat?"
             badge={foodPreferences.length ? `${foodPreferences.length} selected` : "Optional"}
@@ -255,16 +395,72 @@ function ProfileForm() {
             </div>
           </Section>
 
-          <Section n="05" eyebrow="Avoid" title="Anything you'd rather skip?" badge="Optional">
+          <Section n="06" eyebrow="Preferences" title="Anything you'd rather skip?" badge="Flexible">
             <input
               value={dislikes}
               onChange={(e) => setDislikes(e.target.value)}
-              aria-label="Things to avoid, separated by commas"
+              aria-label="Things you'd rather skip, separated by commas"
               placeholder="crowds, seafood, early mornings"
               maxLength={300}
               className="w-full rounded border border-border bg-surface px-4 py-3 text-sm outline-none transition-shadow placeholder:text-muted/60 focus:border-accent focus:ring-4 focus:ring-accent/10"
             />
-            <p className="mt-2 text-xs text-muted">Separate with commas.</p>
+            <p className="mt-2 text-xs text-muted">
+              Separate with commas. RoamAI avoids these, but may bend them when there&apos;s no
+              good alternative — use the rules below for anything that&apos;s a hard no.
+            </p>
+          </Section>
+
+          <Section n="07" eyebrow="Rules" title="Rules RoamAI never breaks" badge="Hard rules" badgeTone="accent">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <RuleSelect
+                label="Earliest start"
+                hint="Nothing is scheduled before this."
+                value={constraints.earliestStart ?? ""}
+                options={START_OPTIONS}
+                onChange={(v) => setRule("earliestStart", v || undefined)}
+              />
+              <RuleSelect
+                label="Latest finish"
+                hint="Every stop has ended by this."
+                value={constraints.latestEnd ?? ""}
+                options={END_OPTIONS}
+                onChange={(v) => setRule("latestEnd", v || undefined)}
+              />
+              <RuleSelect
+                label="Max walking per day"
+                hint="Estimated from the distance between stops."
+                value={constraints.maxWalkingKmPerDay ? String(constraints.maxWalkingKmPerDay) : ""}
+                options={WALK_OPTIONS}
+                onChange={(v) => setRule("maxWalkingKmPerDay", v ? Number(v) : undefined)}
+              />
+              <RuleSelect
+                label="Max stops per day"
+                hint="Meals and activities; travel legs don't count."
+                value={constraints.maxStopsPerDay ? String(constraints.maxStopsPerDay) : ""}
+                options={STOP_OPTIONS}
+                onChange={(v) => setRule("maxStopsPerDay", v ? Number(v) : undefined)}
+              />
+              <RuleSelect
+                label="Longest single stop"
+                hint="No museum marathons unless you say so."
+                value={constraints.maxActivityMinutes ? String(constraints.maxActivityMinutes) : ""}
+                options={DURATION_OPTIONS}
+                onChange={(v) => setRule("maxActivityMinutes", v ? Number(v) : undefined)}
+              />
+            </div>
+            <div role="group" aria-label="Never include" className="mt-5">
+              <p className="font-display text-sm font-semibold text-ink">Never include</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {AVOID_OPTIONS.map((option) => (
+                  <Chip
+                    key={option.tag}
+                    label={option.label}
+                    selected={constraints.avoidTags?.includes(option.tag) ?? false}
+                    onClick={() => toggleAvoid(option.tag)}
+                  />
+                ))}
+              </div>
+            </div>
           </Section>
 
           <section className="relative flex items-start gap-3.5 overflow-hidden rounded-lg bg-gradient-to-br from-accent-soft/70 via-surface to-warm-soft/40 p-5 shadow-card">
@@ -278,15 +474,27 @@ function ProfileForm() {
               </p>
               <p className="mt-1 text-sm leading-relaxed text-muted">
                 Most itinerary tools cram every sight into one long day. Your pace sets how
-                many stops each day holds, and every stop comes with a reason tied to the
-                answers on this page.
+                many stops each day holds, and your rules are checked in code on every plan
+                and every change — a trip that breaks one never reaches you.
               </p>
             </div>
           </section>
         </div>
 
-        <aside className="lg:sticky lg:top-24 lg:col-span-5">
-          <TravelDnaCard dna={dna} destination={destination} interests={travelerTypes.length} />
+        {/* Capped to the space between the header and the action bar, so the
+            rules and the save toggle at the bottom are always reachable. */}
+        <aside className="lg:sticky lg:top-24 lg:col-span-5 lg:max-h-[calc(100vh-11rem)] lg:overflow-y-auto lg:rounded-lg">
+          <TravelDnaCard
+            dna={dna}
+            destination={destination}
+            interests={travelerTypes.length}
+            rules={describeConstraints(profile.constraints)}
+            account={account}
+            restored={restored}
+            saveToAccount={saveToAccount}
+            onSaveToAccountChange={setSaveToAccount}
+            loginHref={`/unlock?next=${encodeURIComponent(selfHref)}`}
+          />
         </aside>
       </div>
 
@@ -477,6 +685,47 @@ function OptionGroup<T extends string>({
   );
 }
 
+function RuleSelect({
+  label,
+  hint,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  const id = useId();
+  const set = value !== "";
+  return (
+    <div className={`flex flex-col gap-1.5 rounded-md p-3 transition-colors ${set ? "bg-accent-soft" : "bg-accent-soft/40"}`}>
+      <label htmlFor={id} className="flex items-center gap-1.5 font-display text-sm font-semibold text-ink">
+        {set ? <ShieldCheck className="h-3.5 w-3.5 text-accent" aria-hidden="true" /> : null}
+        {label}
+      </label>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-describedby={`${id}-hint`}
+        className="rounded border border-border bg-surface px-3 py-2 font-display text-sm font-semibold text-accent outline-none transition-shadow focus:border-accent focus:ring-4 focus:ring-accent/10"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <span id={`${id}-hint`} className="text-xs text-muted">
+        {hint}
+      </span>
+    </div>
+  );
+}
+
 function Chip({
   label,
   selected,
@@ -543,27 +792,25 @@ function capitalize(word: string) {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
-function describeTravelDna(p: {
-  travelerTypes: string[];
-  pace: Pace;
-  budgetTier: BudgetTier;
-  walkingTolerance: WalkingTolerance;
-  foodPreferences: string[];
-}) {
+function describeTravelDna(p: TravelerProfile) {
   const primary = p.travelerTypes[0];
+  const localness = p.localness ?? 3;
+  const discovery = p.discovery ?? 3;
   const title = primary
     ? `The ${PACE_WORD[p.pace]} ${ARCHETYPES[primary] ?? primary}`
     : "Your travel DNA";
   const food = p.foodPreferences.length
-    ? ` and a taste for ${p.foodPreferences.map((f) => f.toLowerCase()).join(", ")} food`
+    ? ` and a taste for ${p.foodPreferences.join(", ")} food`
     : "";
   const summary = primary
-    ? `You travel for ${p.travelerTypes.map((t) => t.toLowerCase()).join(", ")}, at a ${p.pace} pace on a ${p.budgetTier} budget, with ${p.walkingTolerance} walking${food}.`
+    ? `You travel for ${p.travelerTypes.map((t) => t.toLowerCase()).join(", ")}, at a ${p.pace} pace on a ${p.budgetTier} budget, with ${p.walkingTolerance} walking${food}. Style: ${LOCALNESS_LABELS[localness - 1].toLowerCase()}, ${DISCOVERY_LABELS[discovery - 1].toLowerCase()}.`
     : "Pick at least one traveler type and your profile takes shape here.";
   const metrics = [
     { label: "Budget", value: LEVEL[p.budgetTier], caption: capitalize(p.budgetTier), color: "bg-warm" },
     { label: "Pace", value: LEVEL[p.pace], caption: capitalize(p.pace), color: "bg-accent" },
     { label: "Walking", value: LEVEL[p.walkingTolerance], caption: capitalize(p.walkingTolerance), color: "bg-sage" },
+    { label: "Local feel", value: localness * 20, caption: LOCALNESS_LABELS[localness - 1], color: "bg-deep" },
+    { label: "Hidden gems", value: discovery * 20, caption: DISCOVERY_LABELS[discovery - 1], color: "bg-warm" },
     {
       label: "Interests",
       value: Math.round((p.travelerTypes.length / TRAVELER_TYPES.length) * 100),
@@ -578,10 +825,22 @@ function TravelDnaCard({
   dna,
   destination,
   interests,
+  rules,
+  account,
+  restored,
+  saveToAccount,
+  onSaveToAccountChange,
+  loginHref,
 }: {
   dna: ReturnType<typeof describeTravelDna>;
   destination: string;
   interests: number;
+  rules: string[];
+  account: AccountState;
+  restored: boolean;
+  saveToAccount: boolean;
+  onSaveToAccountChange: (value: boolean) => void;
+  loginHref: string;
 }) {
   return (
     <div className="relative overflow-hidden rounded-lg bg-surface p-6 shadow-lift">
@@ -609,7 +868,14 @@ function TravelDnaCard({
         </span>
       </div>
 
-      <div className="relative mt-4 h-36 overflow-hidden rounded-md bg-gradient-to-br from-deep via-accent to-warm">
+      {restored ? (
+        <p className="relative mt-3 inline-flex items-center gap-1.5 rounded-full bg-deep px-3 py-1 font-display text-xs font-semibold text-sage">
+          <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />
+          Loaded your saved Travel DNA
+        </p>
+      ) : null}
+
+      <div className="relative mt-4 h-32 overflow-hidden rounded-md bg-gradient-to-br from-deep via-accent to-warm">
         <RouteArt className="absolute inset-0 h-full w-full" />
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-deep/80 to-transparent px-3 pb-3 pt-8 text-paper">
           <span className="flex min-w-0 items-center gap-1.5 font-display text-xs font-semibold">
@@ -649,10 +915,50 @@ function TravelDnaCard({
         ))}
       </div>
 
-      <p className="relative mt-5 flex items-center gap-2 text-xs text-muted">
-        <span className="h-2 w-2 shrink-0 rounded-full bg-sage" aria-hidden="true" />
-        Your {destination} itinerary is built from this profile.
-      </p>
+      <div className="relative mt-5 rounded-md border border-border p-4">
+        <p className="flex items-center gap-1.5 font-mono text-[0.65rem] font-bold uppercase tracking-widest text-accent">
+          <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+          Hard rules
+        </p>
+        {rules.length ? (
+          <ul aria-label="Your hard rules" className="mt-2 space-y-1.5 text-sm text-ink">
+            {rules.map((rule) => (
+              <li key={rule} className="flex items-start gap-2">
+                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sage" strokeWidth={3} aria-hidden="true" />
+                {rule}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-muted">No hard rules yet — RoamAI will use its judgment.</p>
+        )}
+      </div>
+
+      <div className="relative mt-5 border-t border-border pt-4 text-xs">
+        {account === "signed-in" ? (
+          <label className="flex cursor-pointer items-center gap-2.5 text-ink">
+            <input
+              type="checkbox"
+              checked={saveToAccount}
+              onChange={(e) => onSaveToAccountChange(e.target.checked)}
+              className="h-4 w-4 accent-[hsl(var(--accent))]"
+            />
+            <span className="font-display text-sm font-semibold">Save to my account</span>
+          </label>
+        ) : account === "signed-out" ? (
+          <Link
+            href={loginHref}
+            className="font-display text-sm font-semibold text-accent underline underline-offset-4 hover:text-warm"
+          >
+            Log in to keep your Travel DNA for next time
+          </Link>
+        ) : (
+          <p className="flex items-center gap-2 text-muted">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-sage" aria-hidden="true" />
+            Your {destination} itinerary is built from this profile.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

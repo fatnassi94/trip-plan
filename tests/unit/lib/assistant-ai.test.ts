@@ -8,7 +8,7 @@ import { ASSISTANT_SYSTEM_PROMPT, buildAssistantUserPrompt } from "@/lib/ai/prom
 import { reviseTripDay } from "@/lib/ai/provider";
 import { geminiProvider } from "@/lib/ai/providers/gemini";
 import { makeRainyDay, RAIN_REPLY } from "@/tests/fixtures/assistant";
-import { makeTrip } from "@/tests/fixtures/trip";
+import { makeTrip, makeTripRequest } from "@/tests/fixtures/trip";
 
 const generateJSON = vi.mocked(geminiProvider.generateJSON);
 const trip = makeTrip();
@@ -37,6 +37,12 @@ describe("assistant prompt", () => {
       },
     ]);
     expect(user).not.toHaveProperty("alternative");
+  });
+
+  it("passes the trip's hard rules along", () => {
+    const withRules = { ...trip, profile: { ...makeTripRequest().profile, constraints: { latestEnd: "20:00" } } };
+    const user = JSON.parse(buildAssistantUserPrompt({ trip: withRules, dayNumber: 1, message: "More food" }));
+    expect(user.hardConstraints).toEqual({ latestEnd: "20:00" });
   });
 
   it("asks for a genuinely different idea when the traveler wants another option", () => {
@@ -82,6 +88,20 @@ describe("reviseTripDay", () => {
     const { system, user } = generateJSON.mock.calls[0][0];
     expect(system).not.toContain(INJECTION);
     expect(user).toContain(INJECTION);
+  });
+
+  it("repairs a revision that breaks the trip's hard rules", async () => {
+    const withRules = { ...trip, profile: { ...makeTripRequest().profile, constraints: { maxActivityMinutes: 100 } } };
+    const shorter = makeRainyDay();
+    shorter.items[1].durationMinutes = 90;
+    generateJSON
+      .mockResolvedValueOnce({ reply: RAIN_REPLY, day: makeRainyDay() })
+      .mockResolvedValueOnce({ reply: RAIN_REPLY, day: shorter });
+
+    await expect(reviseTripDay({ trip: withRules, dayNumber: 1, message: "Rain" })).resolves.toMatchObject({
+      day: shorter,
+    });
+    expect(generateJSON.mock.calls[1][0].system).toMatch(/lasts 120 min, over the 100 min limit/);
   });
 
   it("refuses to revise a day the trip doesn't have", async () => {

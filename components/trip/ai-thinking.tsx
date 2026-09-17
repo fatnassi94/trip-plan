@@ -17,6 +17,7 @@ import { RouteArt } from "@/components/brand/route-art";
 import { PlannerActionBar } from "@/components/trip/planner-action-bar";
 import { PlannerProgress } from "@/components/trip/planner-progress";
 import { formatTripRange } from "@/lib/date";
+import { DISCOVERY_LABELS, LOCALNESS_LABELS, describeConstraints } from "@/lib/travel-dna";
 import type { TripRequest } from "@/types/trip";
 
 // 04 — AI Thinking, step 3 of the planner. A card per planning step with
@@ -207,7 +208,16 @@ export function AiThinking({ request }: { request: TripRequest }) {
               </dl>
               <TagRow label="Traveler type" tags={profile.travelerTypes} />
               <TagRow label="Food" tags={profile.foodPreferences.map(capitalize)} />
-              <TagRow label="Avoiding" tags={profile.dislikes} tone="warm" />
+              <TagRow
+                label="Style"
+                tags={[
+                  ...(profile.localness ? [LOCALNESS_LABELS[profile.localness - 1]] : []),
+                  ...(profile.discovery ? [DISCOVERY_LABELS[profile.discovery - 1]] : []),
+                  ...(profile.crowdTolerance ? [`Crowds: ${profile.crowdTolerance}`] : []),
+                ]}
+              />
+              <TagRow label="Rather skip" tags={profile.dislikes} tone="warm" />
+              <TagRow label="Hard rules" tags={describeConstraints(profile.constraints)} />
             </div>
           </div>
 

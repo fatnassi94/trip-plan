@@ -68,9 +68,12 @@ async function generateValidated<T>(
   }
 }
 
-/** Turns a trip request into a validated trip. */
+/** Turns a trip request into a validated trip that respects the traveler's hard constraints. */
 export async function generateTrip(request: TripRequest): Promise<ValidatedTrip> {
-  return generateValidated(TRIP_SYSTEM_PROMPT, buildTripUserPrompt(request), parseTripResponse);
+  const constraints = request.profile.constraints;
+  return generateValidated(TRIP_SYSTEM_PROMPT, buildTripUserPrompt(request), (raw) =>
+    parseTripResponse(raw, constraints),
+  );
 }
 
 /**
@@ -96,6 +99,6 @@ export async function reviseTripDay({
   return generateValidated(
     ASSISTANT_SYSTEM_PROMPT,
     buildAssistantUserPrompt({ trip, dayNumber, message, anotherOption }),
-    (raw) => parseDayRevision(raw, dayNumber),
+    (raw) => parseDayRevision(raw, dayNumber, trip.profile?.constraints),
   );
 }

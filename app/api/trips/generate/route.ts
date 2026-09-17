@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { generateTrip } from "@/lib/ai/provider";
+import { TravelerProfileSchema } from "@/lib/travel-dna";
 import { createServiceRoleClient, createSessionClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { isAuthConfigured } from "@/lib/supabase/config";
 import type { TripPreview } from "@/types/trip";
@@ -41,14 +42,7 @@ const RequestSchema = z.object({
   startDate: z.string(),
   endDate: z.string(),
   travelers: z.number().int().min(1).max(20),
-  profile: z.object({
-    travelerTypes: z.array(z.string()).max(8),
-    budgetTier: z.enum(["budget", "comfort", "premium"]),
-    pace: z.enum(["relaxed", "balanced", "packed"]),
-    walkingTolerance: z.enum(["low", "medium", "high"]),
-    foodPreferences: z.array(z.string()).max(10),
-    dislikes: z.array(z.string()).max(10),
-  }),
+  profile: TravelerProfileSchema,
 });
 
 // Trip generation on the free tier can take a while; give it room.
@@ -105,7 +99,10 @@ export async function POST(req: Request) {
 
   let trip;
   try {
-    trip = await generateTrip(parsed.data);
+    // The profile snapshot is attached here, after validation — never
+    // taken from model output — so later edits (the AI Assistant, PATCH
+    // /api/trips/[id]) are held to the same hard constraints.
+    trip = { ...(await generateTrip(parsed.data)), profile: parsed.data.profile };
   } catch (err) {
     console.error("Trip generation failed", err);
     return NextResponse.json(
