@@ -206,6 +206,17 @@ const server = http.createServer(async (req, res) => {
   try {
     if (path === "/health") return send(res, 200, { ok: true });
 
+    // A blank MapLibre style (NEXT_PUBLIC_MAP_STYLE_URL in the e2e build),
+    // so map tests exercise the real map pipeline without internet tiles.
+    if (path === "/map-style.json") {
+      return send(res, 200, {
+        version: 8,
+        name: "RoamAI e2e",
+        sources: {},
+        layers: [{ id: "background", type: "background", paint: { "background-color": "#eaedff" } }],
+      });
+    }
+
     // ── test controls ─────────────────────────────────────────────────
     if (path === "/__reset" && req.method === "POST") {
       reset();

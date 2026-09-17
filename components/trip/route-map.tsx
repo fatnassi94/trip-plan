@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, type MutableRefObject } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { MapPinOff, RotateCcw } from "lucide-react";
 // Named imports only: maplibre-gl v6 ships ESM with no default export, and
 // its own `Map` class is aliased on the way in so it doesn't shadow the
 // built-in global `Map` this file also uses (for the marker registry below).
@@ -9,43 +10,30 @@ import {
   Marker,
   NavigationControl,
   LngLatBounds,
+  getVersion,
   setWorkerUrl,
   type GeoJSONSource,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { MAP_STYLE_URL, maplibreWorkerUrl } from "@/lib/map-config";
 
-// MapLibre v6 ships its tile-parsing code as a SEPARATE worker bundle and
-// locates it via import.meta.url at runtime — a pattern that assumes an
-// unbundled ESM environment. Under Next.js's webpack bundling that
-// self-location resolves to the current PAGE's own URL instead, so the
-// Worker MapLibre spins up tries to run the page's HTML as a script and
-// is destroyed immediately. Tiles still fetch fine over the network
-// (that's a plain main-thread fetch), but nothing ever parses them, so
-// "load" never fires and no map draws — confirmed by tracing actual
-// Worker creation, whose .url() was the page itself, not a worker script.
+// MapLibre parses tiles and GeoJSON in a Web Worker loaded from a separate
+// file. Its default lookup (import.meta.url) resolves to the page itself
+// under Next.js's bundling, so the URL has to be set explicitly — and it
+// has to be SAME-ORIGIN. For a cross-origin URL (this used to point at
+// unpkg), MapLibre 6.9 wraps the script in a blob: URL and revokes that
+// blob in a `finally` right after `new Worker()`, before the browser has
+// fetched it. The worker died with net::ERR_FILE_NOT_FOUND, "load" never
+// fired, and no pins or route line were ever drawn.
 //
-// Pointing webpack at the local file (`new URL(..., import.meta.url)`,
-// its own asset-module pattern) gets the worker's OWN url right but
-// doesn't fix the problem: that worker script has a further internal
-// `import "./maplibre-gl-shared.mjs"` sibling file, and webpack's `new
-// URL()` asset handling copies the target file verbatim without
-// following or re-emitting what it imports — so the worker loads, then
-// immediately fails to resolve its own dependency (confirmed: a 404 for
-// maplibre-gl-shared.mjs right as the worker died). Replicating the
-// package's internal file layout by hand in the webpack build is
-// fragile and version-specific in exactly the way that breaks silently
-// on the next `npm update`.
-//
-// Pointing at unpkg instead sidesteps the gap entirely: unpkg serves the
-// package's real dist/ folder with its real relative paths intact, so
-// the worker's sibling import resolves correctly with zero extra config.
-// Pinned to the exact installed version below — the main thread (bundled
-// from node_modules) and the worker (fetched from the CDN) must speak
-// the same internal protocol. Keep this in sync with the "maplibre-gl"
-// version in package.json; typecheck/build won't catch a drift here
-// since it's just a string, so double-check this after any upgrade.
-const MAPLIBRE_VERSION = "6.9.0";
-setWorkerUrl(`https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl-worker.mjs`);
+// scripts/vendor-maplibre.mjs copies the worker (and the shared chunk it
+// imports) into public/ for the installed version on every install, dev
+// and build; the version in the path comes from getVersion(), so the main
+// thread and the worker can never drift apart. Guarded for SSR, although
+// this module is only ever loaded in the browser (next/dynamic, ssr:false).
+if (typeof window !== "undefined") {
+  setWorkerUrl(maplibreWorkerUrl(getVersion(), window.location.origin));
+}
 
 export interface RouteMapStop {
   key: string;
@@ -58,19 +46,33 @@ interface RouteMapProps {
   stops: RouteMapStop[];
   selectedKey?: string | null;
   onSelectStop?: (key: string) => void;
+  /** How long to wait for the first render before showing the fallback. */
+  loadTimeoutMs?: number;
 }
 
-// Keyless by design, matching every other third-party call in this app
-// (the OSM embed on the Day Detail activity card, the Gemini free tier):
-// OpenFreeMap (https://openfreemap.org) is a vector-tile host built
-// specifically for MapLibre GL JS with no API key, account, or usage cap
-// — nothing new to add to .env.local.
-const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+type MapStatus = "loading" | "ready" | "failed";
+
 const ROUTE_SOURCE_ID = "roamai-route";
 
 type MarkerMap = Map<string, Marker>;
 
-export function RouteMap({ stops, selectedKey, onSelectStop }: RouteMapProps) {
+/**
+ * A live route map: numbered pins for each stop, joined in order. Shows a
+ * loading state, and a fallback with "Try again" if the map can't load —
+ * retrying re-mounts a fresh MapLibre instance.
+ */
+export function RouteMap(props: RouteMapProps) {
+  const [attempt, setAttempt] = useState(0);
+  return <RouteMapCanvas key={attempt} {...props} onRetry={() => setAttempt((a) => a + 1)} />;
+}
+
+function RouteMapCanvas({
+  stops,
+  selectedKey,
+  onSelectStop,
+  loadTimeoutMs = 20_000,
+  onRetry,
+}: RouteMapProps & { onRetry: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MaplibreMap | null>(null);
   const markersRef = useRef<MarkerMap>(new Map());
@@ -82,6 +84,12 @@ export function RouteMap({ stops, selectedKey, onSelectStop }: RouteMapProps) {
   // the long comment inside the init effect for why teardown is deferred
   // rather than run immediately.
   const teardownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [status, setStatus] = useState<MapStatus>("loading");
+  // True only once the worker has actually processed the route line — the
+  // honest signal that the whole map pipeline works, not just the style.
+  const [routeDrawn, setRouteDrawn] = useState(false);
 
   const reducedMotion =
     typeof window !== "undefined" &&
@@ -123,24 +131,38 @@ export function RouteMap({ stops, selectedKey, onSelectStop }: RouteMapProps) {
 
     const accent = resolveColor("--accent");
     const paper = resolveColor("--paper");
+    let loaded = false;
 
     const map = new MaplibreMap({
       container: containerRef.current,
-      style: MAP_STYLE,
+      style: MAP_STYLE_URL,
       attributionControl: { compact: true },
     });
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     mapRef.current = map;
 
-    // MapLibre reports a failed style/tile/source load through this event
-    // rather than throwing — without a listener, a style that fails to
-    // load silently means "load" never fires and nothing (markers, route
-    // line) ever gets drawn, with no visible error anywhere.
+    // A worker that never starts produces no error event at all — the map
+    // just never loads — so a timeout is the only way to notice it.
+    loadTimeoutRef.current = setTimeout(() => {
+      if (!loaded) setStatus("failed");
+    }, loadTimeoutMs);
+
+    // MapLibre reports failed style/tile/source loads through this event
+    // rather than throwing. Only a failure before the first render (e.g.
+    // the style itself) means "no map"; a stray tile error afterwards
+    // leaves a perfectly usable map on screen.
     map.on("error", (e) => {
       console.error("RouteMap: MapLibre error", e.error?.message ?? e);
+      if (!loaded && !map.isStyleLoaded()) setStatus("failed");
+    });
+
+    map.on("sourcedata", (e) => {
+      if (e.sourceId === ROUTE_SOURCE_ID && e.isSourceLoaded) setRouteDrawn(true);
     });
 
     map.on("load", () => {
+      loaded = true;
+      if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
       map.addSource(ROUTE_SOURCE_ID, {
         type: "geojson",
         data: routeGeoJSON(stops),
@@ -154,6 +176,7 @@ export function RouteMap({ stops, selectedKey, onSelectStop }: RouteMapProps) {
       });
       syncMarkers(map, stops, accent, paper, markersRef, onSelectRef, selectedKey ?? null);
       fitToStops(map, stops, reducedMotion);
+      setStatus("ready");
     });
 
     return () => scheduleTeardown();
@@ -164,6 +187,7 @@ export function RouteMap({ stops, selectedKey, onSelectStop }: RouteMapProps) {
     // "Cannot access 'map' before initialization" when teardown fires.
     function scheduleTeardown() {
       teardownRef.current = setTimeout(() => {
+        if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
         markersRef.current.forEach((m) => m.remove());
         markersRef.current.clear();
         mapRef.current?.remove();
@@ -176,8 +200,8 @@ export function RouteMap({ stops, selectedKey, onSelectStop }: RouteMapProps) {
   }, []);
 
   // Keep markers + the connecting line in sync when the stop list itself
-  // changes (never happens today — a trip's stops are fixed once
-  // generated — but keeps this component correct if that changes).
+  // changes (the trip pages re-mount this component when a day changes,
+  // but this keeps it correct if a caller updates stops in place).
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -216,11 +240,51 @@ export function RouteMap({ stops, selectedKey, onSelectStop }: RouteMapProps) {
 
   return (
     <div
-      ref={containerRef}
-      className="h-full w-full"
-      role="application"
-      aria-label="Map of every stop on this trip, connected in order"
-    />
+      className="relative h-full w-full"
+      data-map-state={status}
+      data-route={routeDrawn ? "drawn" : "pending"}
+    >
+      <div
+        ref={containerRef}
+        className="h-full w-full"
+        role="application"
+        aria-label="Map of every stop on this trip, connected in order"
+      />
+
+      {status === "loading" ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-accent-soft/40">
+          <span
+            role="status"
+            className="rounded-full bg-surface px-3 py-1.5 font-display text-xs font-semibold text-muted shadow-card"
+          >
+            Loading map…
+          </span>
+        </div>
+      ) : null}
+
+      {status === "failed" ? (
+        <div
+          role="alert"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface p-6 text-center"
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-warm-soft text-warm">
+            <MapPinOff className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <p className="font-display text-sm font-semibold text-accent">The map couldn&apos;t load</p>
+          <p className="max-w-xs text-xs text-muted">
+            Your stops are still listed in order, and each one opens in Google Maps from its card.
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-1 inline-flex items-center gap-1.5 rounded bg-accent px-3.5 py-2 font-display text-xs font-semibold text-paper shadow-card transition-colors hover:bg-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+            Try again
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

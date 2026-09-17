@@ -4,7 +4,10 @@
   "private": true,
   "description": "RoamAI — an AI that knows you, builds your trip, then travels with you.",
   "scripts": {
+    "postinstall": "node scripts/vendor-maplibre.mjs",
+    "predev": "node scripts/vendor-maplibre.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/vendor-maplibre.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

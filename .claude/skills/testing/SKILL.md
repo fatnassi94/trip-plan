@@ -65,6 +65,12 @@ tests/
   logging in. Fixed with `experimental.staleTimes.dynamic = 0`
   (next.config.mjs); guarded by `tests/e2e/auth.spec.ts`.
 - **Redirect targets from the URL** go through `lib/safe-redirect.ts`.
+- **Map with no pins.** MapLibre 6.9 revokes the blob it wraps a
+  cross-origin worker in before the worker loads, so the map never
+  finished loading. The worker is served same-origin from `public/vendor`
+  (`scripts/vendor-maplibre.mjs`, run on install/dev/build); map e2e tests
+  use a blank local style (`NEXT_PUBLIC_MAP_STYLE_URL`) and wait for
+  `data-map-state="ready"` + `data-route="drawn"`.
 
 ## Still check by eye for UI changes
 

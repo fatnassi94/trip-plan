@@ -35,7 +35,8 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: `npx next build && npx next start -p ${APP_PORT}`,
+      // npm run build (not next build) so prebuild vendors the map worker.
+      command: `npm run build && npx next start -p ${APP_PORT}`,
       url: `http://localhost:${APP_PORT}`,
       timeout: 300_000,
       reuseExistingServer: false,
@@ -46,6 +47,7 @@ export default defineConfig({
         SUPABASE_SERVICE_ROLE_KEY: MOCK_SERVICE_ROLE_KEY,
         AI_PROVIDER: "gemini",
         GEMINI_API_KEY: "e2e-never-called",
+        NEXT_PUBLIC_MAP_STYLE_URL: `${MOCK_SUPABASE_URL}/map-style.json`,
       },
     },
   ],
