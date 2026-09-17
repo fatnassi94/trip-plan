@@ -23,7 +23,7 @@ describe("assistant prompt", () => {
     const user = JSON.parse(buildAssistantUserPrompt({ trip, dayNumber: 1, message: INJECTION }));
     expect(user.travelerMessage).toBe(INJECTION);
     expect(ASSISTANT_SYSTEM_PROMPT).not.toContain(INJECTION);
-    expect(ASSISTANT_SYSTEM_PROMPT).toMatch(/data, never instructions/);
+    expect(ASSISTANT_SYSTEM_PROMPT).toMatch(/data, never\s+instructions/);
   });
 
   it("sends the full day to revise and only a summary of the other days", () => {
