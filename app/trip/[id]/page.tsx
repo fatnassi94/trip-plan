@@ -19,9 +19,12 @@ import {
 } from "lucide-react";
 import { RouteArt } from "@/components/brand/route-art";
 import { ActivityCard } from "@/components/trip/activity-card";
+import { TripAssistant } from "@/components/trip/trip-assistant";
 import { useTrip } from "@/components/trip/use-trip";
 import { formatTripDay, formatTripRange } from "@/lib/date";
 import { formatDuration, isMapped, summarizeDay } from "@/lib/itinerary";
+import { cacheTrip } from "@/lib/trip-store";
+import type { Trip } from "@/types/trip";
 
 // MapLibre touches `window` at import, so it only loads in the browser.
 const RouteMap = dynamic(
@@ -39,17 +42,24 @@ const RouteMap = dynamic(
 type View = "split" | "itinerary" | "map";
 
 // 06 — Trip Overview, in the design system's split layout: a hero with the
-// trip's real totals, day tabs, the selected day's timeline on the left,
-// and that day's route on a live map on the right. Data comes from this
-// tab's cache or the database — see components/trip/use-trip.ts.
+// trip's real totals, day tabs, the selected day's timeline, that day's
+// route on a live map, and the AI Assistant (10 — "Edit via ✨ Chat") for
+// changing the day in place. Data comes from this tab's cache or the
+// database — see components/trip/use-trip.ts.
 export default function TripOverviewPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "local";
-  const { trip, loaded } = useTrip(id);
+  const { trip: loadedTrip, loaded } = useTrip(id);
+  // Changes applied through the assistant, layered over what was loaded.
+  const [edited, setEdited] = useState<Trip | null>(null);
+  // Bumped on every applied change so the timeline and map re-mount and
+  // visibly redraw the new day.
+  const [revision, setRevision] = useState(0);
   const [dayNumber, setDayNumber] = useState(1);
   const [view, setView] = useState<View>("split");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
+  const trip = edited ?? loadedTrip;
   const day = trip?.days.find((d) => d.day === dayNumber) ?? trip?.days[0];
 
   // Map labels use the stop's position in the day, so pin "3" on the map
@@ -105,6 +115,49 @@ export default function TripOverviewPage() {
   const allItems = trip.days.flatMap((d) => d.items);
   const summary = summarizeDay(day);
   const dayDate = formatTripDay(trip.startDate, day.day);
+
+  function handleApplied(next: Trip) {
+    setEdited(next);
+    cacheTrip(id, next);
+    setSelectedKey(null);
+    setRevision((r) => r + 1);
+  }
+
+  const mapPanel = (className: string) => (
+    <section
+      aria-label={`Day ${day.day} route map`}
+      className={`relative overflow-hidden rounded-lg bg-surface shadow-lift ${className}`}
+    >
+      {stops.length > 0 ? (
+        <>
+          <RouteMap
+            key={`${day.day}-${view}-${revision}`}
+            stops={stops}
+            selectedKey={selectedKey}
+            onSelectStop={setSelectedKey}
+          />
+          <div className="pointer-events-none absolute left-3 top-3 flex max-w-[calc(100%-5rem)] items-center gap-2.5 rounded-md bg-surface/95 px-3 py-2 shadow-card backdrop-blur-md">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-accent-soft text-accent">
+              <Route className="h-4 w-4" aria-hidden="true" />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate font-display text-xs font-bold text-accent">
+                Day {day.day} route
+              </span>
+              <span className="block text-[0.7rem] text-muted">
+                {summary.mapped} of {summary.stops} stops on the map
+              </span>
+            </span>
+          </div>
+        </>
+      ) : (
+        <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted">
+          <MapPin className="h-6 w-6" aria-hidden="true" />
+          No stops on this day have map coordinates.
+        </div>
+      )}
+    </section>
+  );
 
   return (
     <main className="mx-auto max-w-[1440px] px-5 py-8 lg:px-12">
@@ -205,7 +258,7 @@ export default function TripOverviewPage() {
 
       <div className="mt-6 grid items-start gap-6 pb-4 lg:grid-cols-12">
         {view !== "map" ? (
-          <section className={view === "itinerary" ? "lg:col-span-12" : "lg:col-span-7"}>
+          <section className={view === "itinerary" ? "lg:col-span-8" : "lg:col-span-7"}>
             <div className="flex flex-col justify-between gap-3 rounded-lg bg-surface p-4 shadow-card sm:flex-row sm:items-center">
               <div className="flex items-center gap-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-accent font-display text-lg font-bold text-paper">
@@ -239,7 +292,7 @@ export default function TripOverviewPage() {
               </Link>
             </div>
 
-            <ol key={day.day} className="relative mt-5 flex flex-col gap-4 pl-1">
+            <ol key={`${day.day}-${revision}`} className="relative mt-5 flex flex-col gap-4 pl-1">
               <span
                 aria-hidden="true"
                 className="absolute bottom-6 left-[1.05rem] top-6 w-0.5 bg-gradient-to-b from-accent/30 via-accent-soft to-sunset/40"
@@ -279,47 +332,26 @@ export default function TripOverviewPage() {
               })}
             </ol>
           </section>
-        ) : null}
+        ) : (
+          mapPanel("h-[70vh] lg:col-span-8")
+        )}
 
-        {view !== "itinerary" ? (
-          <section
-            aria-label={`Day ${day.day} route map`}
-            className={`relative overflow-hidden rounded-lg bg-surface shadow-lift ${
-              view === "map"
-                ? "h-[70vh] lg:col-span-12"
-                : "h-[380px] lg:sticky lg:top-24 lg:col-span-5 lg:h-[calc(100vh-8rem)]"
-            }`}
-          >
-            {stops.length > 0 ? (
-              <>
-                <RouteMap
-                  key={`${day.day}-${view}`}
-                  stops={stops}
-                  selectedKey={selectedKey}
-                  onSelectStop={setSelectedKey}
-                />
-                <div className="pointer-events-none absolute left-3 top-3 flex max-w-[calc(100%-5rem)] items-center gap-2.5 rounded-md bg-surface/95 px-3 py-2 shadow-card backdrop-blur-md">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-accent-soft text-accent">
-                    <Route className="h-4 w-4" aria-hidden="true" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate font-display text-xs font-bold text-accent">
-                      Day {day.day} route
-                    </span>
-                    <span className="block text-[0.7rem] text-muted">
-                      {summary.mapped} of {summary.stops} stops on the map
-                    </span>
-                  </span>
-                </div>
-              </>
-            ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-sm text-muted">
-                <MapPin className="h-6 w-6" aria-hidden="true" />
-                No stops on this day have map coordinates.
-              </div>
-            )}
-          </section>
-        ) : null}
+        {/* Map (split view) + assistant share one sticky column sized to
+            the viewport, so the chat input never scrolls out of reach. */}
+        <aside
+          className={`flex flex-col gap-6 lg:sticky lg:top-24 lg:h-[calc(100vh-7rem)] ${
+            view === "split" ? "lg:col-span-5" : "lg:col-span-4"
+          }`}
+        >
+          {view === "split" ? mapPanel("h-[340px] shrink-0 lg:h-[40%]") : null}
+          <TripAssistant
+            tripId={id}
+            trip={trip}
+            dayNumber={day.day}
+            onApplied={handleApplied}
+            className="lg:flex-1"
+          />
+        </aside>
       </div>
 
       <div className="mt-8 flex flex-wrap gap-3 border-t border-border pt-6">

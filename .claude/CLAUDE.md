@@ -27,7 +27,8 @@ a change is handed over — see the `testing` skill for how to write them.
 ## Non-negotiable rules
 
 - **Never call an AI SDK outside `lib/ai/`.** Every code path that needs a
-  trip generated calls `generateTrip()` from `lib/ai/provider.ts`. This is
+  trip generated calls `generateTrip()` from `lib/ai/provider.ts`; the AI
+  Assistant's day edits call `reviseTripDay()` from the same file. This is
   what lets us swap Gemini for another model without touching UI code.
 - **Never call an AI provider from the browser.** Browser → our API route
   → provider, always. API keys are server-only env vars, never

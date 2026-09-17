@@ -1,4 +1,4 @@
-import type { ItineraryItem, TripDay } from "@/types/trip";
+import type { ItineraryItem, Trip, TripDay } from "@/types/trip";
 
 // Pure, display-side helpers over an already-validated itinerary: times,
 // day parts, and per-day totals for the trip, day and map headers. Every
@@ -50,4 +50,47 @@ export function summarizeDay(day: TripDay) {
     firstStart: items[0]?.start,
     lastEnd: last ? addMinutes(last.start, last.durationMinutes) : undefined,
   };
+}
+
+// ── Assistant edits ──────────────────────────────────────────────────────
+
+export interface DayChanges {
+  added: string[];
+  removed: string[];
+  /** Same stop, new time window ("09:30–11:00" → "10:00–11:30"). */
+  retimed: { name: string; from: string; to: string }[];
+}
+
+const stopKey = (item: ItineraryItem) => item.name.trim().toLowerCase();
+const timeWindow = (item: ItineraryItem) =>
+  `${item.start}–${addMinutes(item.start, item.durationMinutes)}`;
+
+/**
+ * What a revision did to a day, matched by stop name (ignoring case and
+ * surrounding spaces). Computed here rather than trusted from the model,
+ * so the diff a traveler approves is always the diff that gets applied.
+ */
+export function diffDay(before: TripDay, after: TripDay): DayChanges {
+  const beforeByKey = new Map(before.items.map((item) => [stopKey(item), item]));
+  const afterKeys = new Set(after.items.map(stopKey));
+
+  return {
+    added: after.items.filter((item) => !beforeByKey.has(stopKey(item))).map((item) => item.name),
+    removed: before.items.filter((item) => !afterKeys.has(stopKey(item))).map((item) => item.name),
+    retimed: after.items.flatMap((item) => {
+      const previous = beforeByKey.get(stopKey(item));
+      return previous && timeWindow(previous) !== timeWindow(item)
+        ? [{ name: item.name, from: timeWindow(previous), to: timeWindow(item) }]
+        : [];
+    }),
+  };
+}
+
+export function hasChanges(changes: DayChanges): boolean {
+  return changes.added.length + changes.removed.length + changes.retimed.length > 0;
+}
+
+/** A copy of `trip` with the day of the same number swapped for `day`. */
+export function replaceDay(trip: Trip, day: TripDay): Trip {
+  return { ...trip, days: trip.days.map((d) => (d.day === day.day ? day : d)) };
 }

@@ -38,35 +38,39 @@ export const TripSchema = z.object({
 });
 
 export type ValidatedTrip = z.infer<typeof TripSchema>;
+export type ValidatedTripDay = z.infer<typeof TripDaySchema>;
 
 /** Business rules a schema alone can't express (see project plan §34). */
 export function checkBusinessRules(trip: ValidatedTrip): string[] {
+  return trip.days.flatMap(checkDayRules);
+}
+
+/** The per-day half of checkBusinessRules — also gates assistant edits. */
+export function checkDayRules(day: ValidatedTripDay): string[] {
   const problems: string[] = [];
 
-  for (const day of trip.days) {
-    const withEnd = day.items
-      .map((item) => {
-        const [h, m] = item.start.split(":").map(Number);
-        const startMin = h * 60 + m;
-        return { item, startMin, endMin: startMin + item.durationMinutes };
-      })
-      .sort((a, b) => a.startMin - b.startMin);
+  const withEnd = day.items
+    .map((item) => {
+      const [h, m] = item.start.split(":").map(Number);
+      const startMin = h * 60 + m;
+      return { item, startMin, endMin: startMin + item.durationMinutes };
+    })
+    .sort((a, b) => a.startMin - b.startMin);
 
-    for (let i = 0; i < withEnd.length - 1; i++) {
-      if (withEnd[i].endMin > withEnd[i + 1].startMin) {
-        problems.push(
-          `Day ${day.day}: "${withEnd[i].item.name}" overlaps "${withEnd[i + 1].item.name}"`,
-        );
-      }
+  for (let i = 0; i < withEnd.length - 1; i++) {
+    if (withEnd[i].endMin > withEnd[i + 1].startMin) {
+      problems.push(
+        `Day ${day.day}: "${withEnd[i].item.name}" overlaps "${withEnd[i + 1].item.name}"`,
+      );
     }
+  }
 
-    const totalMinutes = day.items.reduce((sum, i) => sum + i.durationMinutes, 0);
-    if (totalMinutes > 14 * 60) {
-      problems.push(`Day ${day.day}: overloaded (${Math.round(totalMinutes / 60)}h planned)`);
-    }
-    if (day.items.length === 0) {
-      problems.push(`Day ${day.day}: has no items`);
-    }
+  const totalMinutes = day.items.reduce((sum, i) => sum + i.durationMinutes, 0);
+  if (totalMinutes > 14 * 60) {
+    problems.push(`Day ${day.day}: overloaded (${Math.round(totalMinutes / 60)}h planned)`);
+  }
+  if (day.items.length === 0) {
+    problems.push(`Day ${day.day}: has no items`);
   }
 
   return problems;
@@ -84,4 +88,32 @@ export function parseTripResponse(raw: unknown): ValidatedTrip {
     throw new Error(`Trip failed business rules: ${issues.join("; ")}`);
   }
   return trip;
+}
+
+// ── AI Assistant ("Edit via chat") ───────────────────────────────────────
+// The assistant returns a complete replacement for ONE day plus a short
+// reply — never a free-form patch — so its output passes through exactly
+// the same gate as a freshly generated trip.
+
+export const DayRevisionSchema = z.object({
+  reply: z.string().trim().min(1).max(500),
+  day: TripDaySchema,
+});
+
+export type DayRevision = z.infer<typeof DayRevisionSchema>;
+
+/**
+ * Parse + validate an assistant response for `expectedDay`. Throws with a
+ * clear message so the caller can run a repair retry.
+ */
+export function parseDayRevision(raw: unknown, expectedDay: number): DayRevision {
+  const revision = DayRevisionSchema.parse(raw);
+  if (revision.day.day !== expectedDay) {
+    throw new Error(`Revision must keep day ${expectedDay}, but returned day ${revision.day.day}`);
+  }
+  const issues = checkDayRules(revision.day);
+  if (issues.length > 0) {
+    throw new Error(`Revised day failed business rules: ${issues.join("; ")}`);
+  }
+  return revision;
 }
