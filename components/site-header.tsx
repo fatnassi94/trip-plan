@@ -16,6 +16,11 @@ const NAV = [
     match: (p: string) =>
       p.startsWith("/create-trip") || p.startsWith("/trip") || p.startsWith("/unlock"),
   },
+  {
+    href: "/destinations",
+    label: "Destinations",
+    match: (p: string) => p.startsWith("/destinations"),
+  },
   { href: "/profile", label: "Travel DNA", match: (p: string) => p.startsWith("/profile") },
   { href: "/account", label: "My Trips", match: (p: string) => p.startsWith("/account") },
 ];

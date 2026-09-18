@@ -1,0 +1,58 @@
+[
+  {
+    "id": "48-hours-in-tunis",
+    "slug": "48-hours-in-tunis",
+    "title": "48 hours in Tunis",
+    "summary": "Two days that cover the medina, the mosaics and the coast without rushing any of them.",
+    "readingMinutes": 6,
+    "destinationSlugs": ["tunis", "sidi-bou-said"],
+    "imageQuery": "Tunis medina rooftop view",
+    "highlights": [
+      "Morning souks before the heat",
+      "The Bardo's mosaic halls, slowly",
+      "Sunset over the gulf at Sidi Bou Said"
+    ]
+  },
+  {
+    "id": "istanbul-food-neighbourhoods",
+    "slug": "istanbul-food-neighbourhoods",
+    "title": "Where to eat in Istanbul, by neighbourhood",
+    "summary": "A ferry-shaped eating route: breakfast on one continent, dinner on the other.",
+    "readingMinutes": 7,
+    "destinationSlugs": ["istanbul"],
+    "imageQuery": "Istanbul street food market evening",
+    "highlights": [
+      "Long weekend breakfast, the local way",
+      "Kadıköy market, stall by stall",
+      "What to order when the menu has no pictures"
+    ]
+  },
+  {
+    "id": "first-time-tokyo",
+    "slug": "first-time-tokyo",
+    "title": "A first-timer's Tokyo",
+    "summary": "How to pick neighbourhoods, ride the trains, and eat well without a reservation.",
+    "readingMinutes": 8,
+    "destinationSlugs": ["tokyo"],
+    "imageQuery": "Tokyo backstreet lanterns evening",
+    "highlights": [
+      "Two neighbourhoods a day, no more",
+      "Counters where solo diners are normal",
+      "The last-train question, answered early"
+    ]
+  },
+  {
+    "id": "mediterranean-weekends",
+    "slug": "mediterranean-weekends",
+    "title": "Mediterranean weekend escapes",
+    "summary": "Four short trips where the sea, the food and the walking are all within a few hours.",
+    "readingMinutes": 5,
+    "destinationSlugs": ["sidi-bou-said", "rome", "istanbul", "tunis"],
+    "imageQuery": "Mediterranean coastal town blue sea",
+    "highlights": [
+      "Where to base yourself for two nights",
+      "Coastal walks that need no car",
+      "Eating late, like everyone else"
+    ]
+  }
+]

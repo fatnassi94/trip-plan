@@ -1,0 +1,445 @@
+[
+  {
+    "id": "tunis",
+    "slug": "tunis",
+    "name": "Tunis",
+    "country": "Tunisia",
+    "region": "North Africa",
+    "cityOrRegion": "Greater Tunis",
+    "latitude": 36.8065,
+    "longitude": 10.1815,
+    "shortDescription": "A layered capital where a UNESCO medina, Ottoman palaces and Roman mosaics sit half an hour from the sea.",
+    "whyGo": "Few capitals pack this much history into short distances. You can spend a morning lost in covered souks, an afternoon among the world's finest Roman mosaics, and end the day watching the sun drop behind Carthage's ruins.",
+    "tags": ["medina", "history", "food", "mosaics", "coastal"],
+    "moods": ["historic-cities", "food-culture", "budget-escapes"],
+    "bestFor": ["First-time North Africa", "History lovers", "Slow city walks"],
+    "bestTimeToVisit": "March to May and September to November, when days are warm and the medina is not baking.",
+    "estimatedDailyBudget": { "currency": "EUR", "budget": 35, "comfort": 70, "premium": 150 },
+    "tripDurationSuggestion": "2–3 days, or 4 with Carthage and Sidi Bou Said",
+    "heroImageQuery": "Tunis medina rooftops Tunisia",
+    "galleryImageQueries": [
+      "Tunis medina alley doors",
+      "Bardo museum mosaic Tunis",
+      "Carthage ruins sea Tunisia",
+      "Tunisian street food market"
+    ],
+    "curatedImages": [],
+    "neighborhoods": [
+      { "name": "Medina of Tunis", "note": "Covered souks, tiled palaces and tea rooms behind the Zitouna mosque." },
+      { "name": "Ville Nouvelle", "note": "Wide avenues, art-deco façades and café terraces along Habib Bourguiba." },
+      { "name": "Carthage", "note": "Seaside archaeological sites spread over a quiet residential hill." },
+      { "name": "La Marsa", "note": "Beach promenade where Tunis goes to eat ice cream at sunset." }
+    ],
+    "thingsToDo": [
+      "Walk the medina from Bab Bhar to the Zitouna mosque early, before the souks fill",
+      "Give the Bardo Museum a slow two hours for its Roman mosaic halls",
+      "Climb to a rooftop terrace above the souks for the whole medina at once",
+      "Take the TGM train along the coast to the Carthage ruins"
+    ],
+    "localFood": [
+      { "name": "Lablabi", "note": "Chickpea soup over torn bread, eaten standing at breakfast counters." },
+      { "name": "Brik à l'oeuf", "note": "Thin pastry folded around egg and tuna, fried to order." },
+      { "name": "Ojja merguez", "note": "Eggs poached in spiced tomato with lamb sausage." },
+      { "name": "Makroudh", "note": "Semolina pastry filled with dates, soaked in honey." }
+    ],
+    "travelTips": [
+      "Fridays quieten the souks around midday prayer — plan museums then",
+      "Agree a louage or taxi fare before setting off; meters are often 'broken'",
+      "Cash still rules in the medina; cards work in the Ville Nouvelle",
+      "Say 'la, shukran' politely and keep walking if a guide attaches himself to you"
+    ],
+    "sampleItinerary": [
+      { "day": 1, "title": "Medina and rooftops", "stops": ["Bab Bhar gate", "Souk el Attarine", "Rooftop terrace tea", "Ville Nouvelle dinner"] },
+      { "day": 2, "title": "Mosaics and the sea", "stops": ["Bardo Museum", "Carthage Byrsa hill", "Sidi Bou Said sunset", "La Marsa promenade"] },
+      { "day": 3, "title": "Markets and pastries", "stops": ["Marché Central", "Dar Ben Abdallah museum", "Pastry crawl", "Belvedere park"] }
+    ],
+    "related": ["sidi-bou-said", "marrakech", "istanbul"]
+  },
+  {
+    "id": "sidi-bou-said",
+    "slug": "sidi-bou-said",
+    "name": "Sidi Bou Said",
+    "country": "Tunisia",
+    "region": "North Africa",
+    "cityOrRegion": "Tunis governorate",
+    "latitude": 36.8708,
+    "longitude": 10.3472,
+    "shortDescription": "A blue-and-white village on a cliff above the Gulf of Tunis, best walked in the late afternoon.",
+    "whyGo": "It is small enough to see in an afternoon and beautiful enough to stay until dark: cobbled lanes, studded blue doors, bougainvillea, and a café terrace looking straight down at the marina.",
+    "tags": ["village", "views", "photography", "coastal", "cafes"],
+    "moods": ["beaches-islands", "food-culture", "luxury-relaxation"],
+    "bestFor": ["Golden hour photography", "Half-day trips", "Slow coffee"],
+    "bestTimeToVisit": "April to June, or September, when the light is soft and the lanes are not crowded.",
+    "estimatedDailyBudget": { "currency": "EUR", "budget": 40, "comfort": 85, "premium": 180 },
+    "tripDurationSuggestion": "Half a day, or one night to have the village at dawn",
+    "heroImageQuery": "Sidi Bou Said blue white village Tunisia",
+    "galleryImageQueries": [
+      "Sidi Bou Said blue door detail",
+      "Sidi Bou Said cafe terrace sea",
+      "Sidi Bou Said marina viewpoint",
+      "bougainvillea white wall Tunisia"
+    ],
+    "curatedImages": [],
+    "neighborhoods": [
+      { "name": "Main lane", "note": "The climb from the entrance to the lighthouse, lined with craft shops." },
+      { "name": "Marina side", "note": "Steps down to the port, quieter and good for sunset." }
+    ],
+    "thingsToDo": [
+      "Climb the main lane to the lighthouse before the tour groups arrive",
+      "Drink a mint tea with pine nuts on a terrace above the gulf",
+      "Visit Dar el Annabi for a look inside a traditional family house",
+      "Walk down to the marina for the view back up at the cliff"
+    ],
+    "localFood": [
+      { "name": "Bambalouni", "note": "Hot sugared doughnut sold from a hatch near the entrance." },
+      { "name": "Thé aux pignons", "note": "Sweet mint tea crowded with toasted pine nuts." },
+      { "name": "Grilled sea bream", "note": "Straight off the boats at the marina restaurants." }
+    ],
+    "travelTips": [
+      "Arrive after 16:00 for light and space; midday is the busiest hour",
+      "The TGM train from Tunis is cheap and drops you a short walk below the village",
+      "Cobbles and a steady climb — flat shoes beat sandals here",
+      "Most cafés are cash only"
+    ],
+    "sampleItinerary": [
+      { "day": 1, "title": "Afternoon and sunset", "stops": ["Main lane climb", "Dar el Annabi", "Café des Délices terrace", "Marina steps at sunset"] }
+    ],
+    "related": ["tunis", "paris", "marrakech"]
+  },
+  {
+    "id": "paris",
+    "slug": "paris",
+    "name": "Paris",
+    "country": "France",
+    "region": "Western Europe",
+    "cityOrRegion": "Île-de-France",
+    "latitude": 48.8566,
+    "longitude": 2.3522,
+    "shortDescription": "Grand boulevards and small neighbourhoods — the city rewards walking one arrondissement at a time.",
+    "whyGo": "Paris works best when you stop trying to see all of it. Pick two neighbourhoods a day, eat where the queue is local, and let the landmarks appear between them.",
+    "tags": ["art", "architecture", "food", "walkable", "museums"],
+    "moods": ["historic-cities", "food-culture", "luxury-relaxation"],
+    "bestFor": ["Museums at your own pace", "Café mornings", "Walking cities"],
+    "bestTimeToVisit": "Late April to June and September to October — long light, gardens open, fewer closures than August.",
+    "estimatedDailyBudget": { "currency": "EUR", "budget": 75, "comfort": 160, "premium": 350 },
+    "tripDurationSuggestion": "3–5 days",
+    "heroImageQuery": "Paris rooftops golden hour Seine",
+    "galleryImageQueries": [
+      "Paris cafe terrace morning",
+      "Le Marais street Paris",
+      "Musee d'Orsay interior Paris",
+      "Seine bridge sunset Paris"
+    ],
+    "curatedImages": [],
+    "neighborhoods": [
+      { "name": "Le Marais", "note": "Narrow streets, falafel counters, small museums in old mansions." },
+      { "name": "Saint-Germain-des-Prés", "note": "Literary cafés, galleries and the Luxembourg gardens." },
+      { "name": "Canal Saint-Martin", "note": "Iron footbridges, natural wine bars, younger crowd." },
+      { "name": "Montmartre", "note": "Steep lanes and village feel above the tourist steps." }
+    ],
+    "thingsToDo": [
+      "Walk the Seine between Pont Neuf and Île Saint-Louis in the early evening",
+      "Take the Musée d'Orsay over the Louvre if you have one museum in you",
+      "Buy lunch at a market street — Rue Mouffetard or Rue des Martyrs",
+      "Sit in the Luxembourg gardens with a pastry and no plan"
+    ],
+    "localFood": [
+      { "name": "Jambon-beurre", "note": "Ham and butter on a fresh baguette — the honest Paris lunch." },
+      { "name": "Steak frites", "note": "Bistro standard; order it rarer than you think." },
+      { "name": "Pain au chocolat", "note": "Judge a bakery by its lamination, not its queue." },
+      { "name": "Natural wine", "note": "Canal Saint-Martin and the 11th pour the interesting bottles." }
+    ],
+    "travelTips": [
+      "Many museums close Mondays or Tuesdays — check before you build a day around one",
+      "A carnet of metro tickets or a Navigo Easy card beats buying singles",
+      "Bakeries close one day a week, often Sunday or Monday",
+      "Reserve dinner for 19:30 or 21:30; 20:30 is when everyone else calls"
+    ],
+    "sampleItinerary": [
+      { "day": 1, "title": "Islands and the Marais", "stops": ["Île de la Cité", "Le Marais lunch", "Musée Carnavalet", "Seine evening walk"] },
+      { "day": 2, "title": "Left bank", "stops": ["Musée d'Orsay", "Saint-Germain lunch", "Luxembourg gardens", "Rue Mouffetard dinner"] },
+      { "day": 3, "title": "North and up", "stops": ["Canal Saint-Martin", "Montmartre lanes", "Sacré-Cœur at dusk", "Pigalle wine bar"] }
+    ],
+    "related": ["rome", "istanbul", "tokyo"]
+  },
+  {
+    "id": "rome",
+    "slug": "rome",
+    "name": "Rome",
+    "country": "Italy",
+    "region": "Southern Europe",
+    "cityOrRegion": "Lazio",
+    "latitude": 41.9028,
+    "longitude": 12.4964,
+    "shortDescription": "Twenty-eight centuries stacked on one another, with dinner in the middle of it.",
+    "whyGo": "Rome is the rare city where the ruins are not fenced off from daily life — you cross a Roman road on the way to lunch, and the best square is the one you stumble into after dark.",
+    "tags": ["ruins", "food", "piazzas", "art", "walkable"],
+    "moods": ["historic-cities", "food-culture", "nightlife"],
+    "bestFor": ["Ancient history", "Pasta pilgrimages", "Evening strolls"],
+    "bestTimeToVisit": "April to early June and late September to October; August is hot and half-shuttered.",
+    "estimatedDailyBudget": { "currency": "EUR", "budget": 65, "comfort": 140, "premium": 300 },
+    "tripDurationSuggestion": "3–4 days",
+    "heroImageQuery": "Rome rooftops dome sunset",
+    "galleryImageQueries": [
+      "Trastevere street Rome evening",
+      "Roman Forum ruins morning",
+      "Roman pasta carbonara plate",
+      "Pantheon interior light Rome"
+    ],
+    "curatedImages": [],
+    "neighborhoods": [
+      { "name": "Trastevere", "note": "Ivy, cobbles and trattorias across the river." },
+      { "name": "Monti", "note": "Vintage shops and wine bars a few steps from the Forum." },
+      { "name": "Testaccio", "note": "Market quarter where Roman food traditions are strongest." },
+      { "name": "Centro Storico", "note": "Pantheon, piazzas and the crowds that come with them." }
+    ],
+    "thingsToDo": [
+      "See the Forum and Palatine first thing, then the Colosseum after",
+      "Eat where Testaccio's market traders eat, not where the menus have photos",
+      "Walk the Appian Way on a Sunday when it closes to traffic",
+      "Stand under the Pantheon's oculus in light rain if you get the chance"
+    ],
+    "localFood": [
+      { "name": "Cacio e pepe", "note": "Three ingredients, nowhere to hide — the local test of a kitchen." },
+      { "name": "Supplì", "note": "Fried rice ball with a molten mozzarella centre." },
+      { "name": "Carciofi alla giudia", "note": "Flattened, deep-fried artichoke from the Jewish quarter." },
+      { "name": "Maritozzo", "note": "Sweet bun split and filled with cream, eaten at breakfast." }
+    ],
+    "travelTips": [
+      "Book Colosseum and Vatican slots ahead; walk-ups burn hours",
+      "Cover shoulders and knees for churches, including small ones",
+      "Drink from the nasoni street fountains — the water is excellent",
+      "Sitting down costs more than standing at the bar for coffee"
+    ],
+    "sampleItinerary": [
+      { "day": 1, "title": "Ancient Rome", "stops": ["Roman Forum", "Palatine Hill", "Colosseum", "Monti dinner"] },
+      { "day": 2, "title": "Centro and river", "stops": ["Pantheon", "Piazza Navona", "Jewish quarter lunch", "Trastevere evening"] },
+      { "day": 3, "title": "Market day", "stops": ["Testaccio market", "Non-Catholic cemetery", "Aventine keyhole", "Sunset on the Janiculum"] }
+    ],
+    "related": ["paris", "istanbul", "tunis"]
+  },
+  {
+    "id": "istanbul",
+    "slug": "istanbul",
+    "name": "Istanbul",
+    "country": "Türkiye",
+    "region": "Eurasia",
+    "cityOrRegion": "Marmara",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "shortDescription": "Two continents, one ferry ride, and a food scene that rewards eating five small things instead of one big one.",
+    "whyGo": "Istanbul is best understood from the water: the skyline changes every few minutes, and each shore has its own pace — imperial on one side, neighbourhood cafés and markets on the other.",
+    "tags": ["bazaar", "food", "mosques", "ferries", "bosphorus"],
+    "moods": ["historic-cities", "food-culture", "budget-escapes"],
+    "bestFor": ["Street food", "Ferry days", "Mosque architecture"],
+    "bestTimeToVisit": "April to May and September to November — mild, clear and good for walking.",
+    "estimatedDailyBudget": { "currency": "EUR", "budget": 40, "comfort": 90, "premium": 200 },
+    "tripDurationSuggestion": "3–5 days",
+    "heroImageQuery": "Istanbul Bosphorus skyline mosques sunset",
+    "galleryImageQueries": [
+      "Istanbul spice bazaar colors",
+      "Bosphorus ferry seagulls Istanbul",
+      "Turkish breakfast spread table",
+      "Kadikoy street Istanbul evening"
+    ],
+    "curatedImages": [],
+    "neighborhoods": [
+      { "name": "Sultanahmet", "note": "The imperial core: Hagia Sophia, Blue Mosque, Topkapı." },
+      { "name": "Karaköy & Galata", "note": "Coffee, design shops and the tower, steeply uphill." },
+      { "name": "Kadıköy", "note": "Asian-side market streets where locals actually eat." },
+      { "name": "Balat", "note": "Coloured houses, antique shops, quiet lanes." }
+    ],
+    "thingsToDo": [
+      "Cross to Kadıköy by public ferry and eat your way through the market",
+      "See Hagia Sophia early, then the Basilica Cistern when the sun is high",
+      "Walk Balat's lanes with no route in mind",
+      "Have a long Turkish breakfast on a weekend — it is the main event"
+    ],
+    "localFood": [
+      { "name": "Balık ekmek", "note": "Grilled fish in bread, eaten by the Galata bridge." },
+      { "name": "Menemen", "note": "Soft eggs with tomato and green pepper, scooped with bread." },
+      { "name": "Lahmacun", "note": "Thin flatbread with minced lamb — squeeze lemon, roll, eat." },
+      { "name": "Künefe", "note": "Shredded pastry over melting cheese in syrup." }
+    ],
+    "travelTips": [
+      "An Istanbulkart covers ferries, trams and buses — buy one on arrival",
+      "Ferries are transport, not tours, and cost a fraction of cruise prices",
+      "Carry a scarf for mosque visits and slip-on shoes for the shoe racks",
+      "Traffic is the real distance; plan by ferry and tram, not by map line"
+    ],
+    "sampleItinerary": [
+      { "day": 1, "title": "The imperial core", "stops": ["Hagia Sophia", "Blue Mosque", "Basilica Cistern", "Sultanahmet dinner"] },
+      { "day": 2, "title": "Across the water", "stops": ["Ferry to Kadıköy", "Market food crawl", "Moda seafront", "Ferry back at dusk"] },
+      { "day": 3, "title": "Bazaars and Balat", "stops": ["Spice Bazaar", "Süleymaniye Mosque", "Balat lanes", "Galata sunset"] }
+    ],
+    "related": ["rome", "tunis", "marrakech"]
+  },
+  {
+    "id": "tokyo",
+    "slug": "tokyo",
+    "name": "Tokyo",
+    "country": "Japan",
+    "region": "East Asia",
+    "cityOrRegion": "Kantō",
+    "latitude": 35.6762,
+    "longitude": 139.6503,
+    "shortDescription": "A city of villages under neon — quiet shrines and standing noodle bars a minute apart.",
+    "whyGo": "Tokyo rewards curiosity at small scale: a six-seat counter, a basement record shop, a shrine between office towers. Pick a station, walk out, and the city does the rest.",
+    "tags": ["food", "neon", "design", "temples", "trains"],
+    "moods": ["food-culture", "nightlife", "historic-cities"],
+    "bestFor": ["First-time Japan", "Food obsessives", "Solo travel"],
+    "bestTimeToVisit": "Late March to April for blossom, or October to November for clear, cool days.",
+    "estimatedDailyBudget": { "currency": "EUR", "budget": 70, "comfort": 150, "premium": 320 },
+    "tripDurationSuggestion": "4–6 days",
+    "heroImageQuery": "Tokyo skyline neon night street",
+    "galleryImageQueries": [
+      "Shibuya crossing Tokyo evening",
+      "Tokyo ramen counter bowl",
+      "Senso-ji temple lantern Asakusa",
+      "Yanaka quiet street Tokyo"
+    ],
+    "curatedImages": [],
+    "neighborhoods": [
+      { "name": "Shibuya & Shimokitazawa", "note": "Crossings and crowds, then thrift shops and coffee two stops away." },
+      { "name": "Asakusa & Yanaka", "note": "Old-Tokyo lanes, temples and sweet shops." },
+      { "name": "Shinjuku", "note": "Department-store basements, tiny bars in Golden Gai." },
+      { "name": "Nakameguro", "note": "Canal-side walking, small design shops." }
+    ],
+    "thingsToDo": [
+      "Eat standing at a station soba counter during the morning rush",
+      "Walk Yanaka's lanes and its cemetery avenue in the late afternoon",
+      "Spend an hour in a department-store food hall before dinner",
+      "Ride the Yamanote line one full loop when you are tired"
+    ],
+    "localFood": [
+      { "name": "Tsukemen", "note": "Cold noodles dipped into concentrated hot broth." },
+      { "name": "Onigiri", "note": "Rice triangles done seriously — convenience stores included." },
+      { "name": "Yakitori", "note": "Charcoal skewers under railway arches, ordered one at a time." },
+      { "name": "Melonpan", "note": "Crisp-topped sweet bun, best straight from the oven." }
+    ],
+    "travelTips": [
+      "Get a Suica or Pasmo card; most small places still prefer cash",
+      "Trains stop around midnight — plan the last leg before dinner",
+      "Queues move fast and are a good sign, not a warning",
+      "Carry your rubbish; public bins are rare"
+    ],
+    "sampleItinerary": [
+      { "day": 1, "title": "Old Tokyo", "stops": ["Senso-ji at opening", "Asakusa backstreets", "Yanaka lanes", "Ueno izakaya"] },
+      { "day": 2, "title": "West side", "stops": ["Shibuya crossing", "Shimokitazawa thrifting", "Nakameguro canal", "Golden Gai nightcap"] },
+      { "day": 3, "title": "Food and gardens", "stops": ["Tsukiji outer market", "Hama-rikyu garden", "Depachika food hall", "Yakitori under the tracks"] }
+    ],
+    "related": ["bali", "istanbul", "paris"]
+  },
+  {
+    "id": "marrakech",
+    "slug": "marrakech",
+    "name": "Marrakech",
+    "country": "Morocco",
+    "region": "North Africa",
+    "cityOrRegion": "Marrakech-Safi",
+    "latitude": 31.6295,
+    "longitude": -7.9811,
+    "shortDescription": "Souks, courtyards and roof terraces, with the Atlas mountains on the horizon.",
+    "whyGo": "The medina is loud, bright and relentless — and then you step through a plain door into a cool tiled courtyard and the city makes sense. The contrast is the whole appeal.",
+    "tags": ["souks", "riads", "gardens", "desert", "crafts"],
+    "moods": ["food-culture", "historic-cities", "budget-escapes"],
+    "bestFor": ["Craft shopping", "Courtyard stays", "Day trips to the mountains"],
+    "bestTimeToVisit": "March to May and October to November; summer regularly passes 40°C.",
+    "estimatedDailyBudget": { "currency": "EUR", "budget": 35, "comfort": 80, "premium": 220 },
+    "tripDurationSuggestion": "3 days, plus one for the Atlas or Essaouira",
+    "heroImageQuery": "Marrakech medina rooftop Atlas mountains",
+    "galleryImageQueries": [
+      "Marrakech souk spices colors",
+      "riad courtyard tiles Morocco",
+      "Jemaa el-Fnaa evening Marrakech",
+      "Majorelle garden blue Marrakech"
+    ],
+    "curatedImages": [],
+    "neighborhoods": [
+      { "name": "Medina", "note": "Souks, riads and the main square, all on foot." },
+      { "name": "Kasbah", "note": "Quieter southern quarter near the Saadian tombs." },
+      { "name": "Gueliz", "note": "Modern grid with galleries, cafés and wine lists." },
+      { "name": "Palmeraie", "note": "Palm groves and pools outside the walls." }
+    ],
+    "thingsToDo": [
+      "Get lost in the souks on purpose, then hire a guide for the second day",
+      "See Ben Youssef Madrasa when it opens and have the courtyard to yourself",
+      "Watch Jemaa el-Fnaa fill from a terrace at dusk",
+      "Take a half-day into the Atlas foothills for cooler air"
+    ],
+    "localFood": [
+      { "name": "Tanjia", "note": "Marrakech's own slow-cooked lamb, sealed in a clay urn." },
+      { "name": "Harira", "note": "Tomato and lentil soup, often with dates on the side." },
+      { "name": "Msemen", "note": "Flaky square pancake with honey, for breakfast." },
+      { "name": "Mint tea", "note": "Poured high; sweet by default, ask for less sugar." }
+    ],
+    "travelTips": [
+      "Agree prices before anything — a tea, a taxi, a 'shortcut' guide",
+      "Riads are cooler and quieter than hotels on the ring road",
+      "Fridays are slower; couscous is the traditional family lunch",
+      "Carry small notes; change is a constant negotiation"
+    ],
+    "sampleItinerary": [
+      { "day": 1, "title": "Medina on foot", "stops": ["Ben Youssef Madrasa", "Souk crawl", "Riad rest", "Jemaa el-Fnaa at dusk"] },
+      { "day": 2, "title": "Gardens and palaces", "stops": ["Bahia Palace", "Saadian tombs", "Majorelle garden", "Gueliz dinner"] },
+      { "day": 3, "title": "Out of the city", "stops": ["Atlas foothills", "Berber village lunch", "Return by late afternoon", "Terrace sunset"] }
+    ],
+    "related": ["tunis", "istanbul", "sidi-bou-said"]
+  },
+  {
+    "id": "bali",
+    "slug": "bali",
+    "name": "Bali",
+    "country": "Indonesia",
+    "region": "Southeast Asia",
+    "cityOrRegion": "Lesser Sunda Islands",
+    "latitude": -8.4095,
+    "longitude": 115.1889,
+    "shortDescription": "Rice terraces, temple mornings and surf afternoons — pick one or two bases, not five.",
+    "whyGo": "Bali is several islands in temperament: highland villages with cool evenings, a surf coast, and quiet east-side beaches. The trick is choosing two and travelling slowly between them.",
+    "tags": ["beaches", "rice terraces", "surf", "temples", "wellness"],
+    "moods": ["beaches-islands", "nature-hiking", "luxury-relaxation"],
+    "bestFor": ["Long stays", "Surf and yoga", "Warm-water swimming"],
+    "bestTimeToVisit": "May to September is drier; April and October are quieter with a little rain.",
+    "estimatedDailyBudget": { "currency": "EUR", "budget": 30, "comfort": 75, "premium": 250 },
+    "tripDurationSuggestion": "7–10 days across two bases",
+    "heroImageQuery": "Bali rice terraces green morning",
+    "galleryImageQueries": [
+      "Bali temple gate morning mist",
+      "Uluwatu cliff beach Bali",
+      "Balinese warung food plate",
+      "Ubud jungle path Bali"
+    ],
+    "curatedImages": [],
+    "neighborhoods": [
+      { "name": "Ubud", "note": "Rice fields, craft villages, cool evenings inland." },
+      { "name": "Canggu", "note": "Surf breaks, cafés, motorbike traffic." },
+      { "name": "Uluwatu", "note": "Cliffs, big swell, sunset temple." },
+      { "name": "Amed & the east", "note": "Black-sand bays, snorkelling, very quiet." }
+    ],
+    "thingsToDo": [
+      "Walk the Campuhan ridge before breakfast while it is still cool",
+      "Eat at a warung where the plate is assembled in front of you",
+      "Snorkel the eastern bays instead of joining a boat crowd",
+      "Take a morning temple visit seriously — dress and behave as a guest"
+    ],
+    "localFood": [
+      { "name": "Nasi campur", "note": "Rice with a rotating handful of small dishes." },
+      { "name": "Babi guling", "note": "Spit-roast pork, a Balinese celebration dish." },
+      { "name": "Sate lilit", "note": "Minced fish satay wrapped on lemongrass." },
+      { "name": "Kopi tubruk", "note": "Strong unfiltered coffee; let the grounds settle." }
+    ],
+    "travelTips": [
+      "Distances look short and take hours — build in transfer time",
+      "A sarong is required at temples; most lend them at the gate",
+      "Rent a scooter only with the right licence and a real helmet",
+      "Carry cash for warungs; card acceptance is patchy outside tourist strips"
+    ],
+    "sampleItinerary": [
+      { "day": 1, "title": "Highland start", "stops": ["Campuhan ridge walk", "Ubud market", "Rice terrace afternoon", "Warung dinner"] },
+      { "day": 2, "title": "Temples and crafts", "stops": ["Morning temple", "Craft village", "Jungle swim", "Sunset in Ubud"] },
+      { "day": 3, "title": "Coast day", "stops": ["Drive to the coast", "Beach and swim", "Cliff sunset", "Grilled fish dinner"] }
+    ],
+    "related": ["tokyo", "sidi-bou-said", "marrakech"]
+  }
+]

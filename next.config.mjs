@@ -12,6 +12,14 @@ const nextConfig = {
     // 0 = always fetch the page fresh on navigation.
     staleTimes: { dynamic: 0 },
   },
+  images: {
+    // next/image only optimises hosts named here. Unsplash serves both
+    // photos and their thumbnails from these two.
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "plus.unsplash.com" },
+    ],
+  },
   eslint: {
     // Runs explicitly via `npm run lint` (and should also run in CI) —
     // not worth re-running on every production build while the app is young.

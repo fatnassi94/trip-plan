@@ -5,6 +5,7 @@ import { Logo } from "@/components/brand/logo";
 // until those pages are written.
 const LINKS = [
   { href: "/", label: "Explore" },
+  { href: "/destinations", label: "Destinations" },
   { href: "/create-trip", label: "Trip planner" },
   { href: "/account", label: "My trips" },
 ];

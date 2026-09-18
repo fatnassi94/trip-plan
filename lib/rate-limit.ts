@@ -47,3 +47,10 @@ export function createRateLimiter({ limit, windowMs }: { limit: number; windowMs
 
 /** AI Assistant edits: 12 requests per traveler (or IP) per 10 minutes. */
 export const assistantRateLimiter = createRateLimiter({ limit: 12, windowMs: 10 * 60 * 1000 });
+
+/**
+ * Destination photography: Unsplash's free tier allows 50 requests an
+ * hour for the whole app, so one browser may not burn them all. Generous
+ * enough for a gallery, tight enough to stop a script.
+ */
+export const imageRateLimiter = createRateLimiter({ limit: 60, windowMs: 60 * 1000 });

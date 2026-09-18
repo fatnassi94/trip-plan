@@ -48,6 +48,9 @@ export default defineConfig({
         AI_PROVIDER: "gemini",
         GEMINI_API_KEY: "e2e-never-called",
         NEXT_PUBLIC_MAP_STYLE_URL: `${MOCK_SUPABASE_URL}/map-style.json`,
+        // No third-party photos in browser tests: the UI renders its own
+        // gradient placeholders, which is exactly the no-API-key path.
+        TRAVEL_IMAGES_MODE: "off",
       },
     },
   ],
