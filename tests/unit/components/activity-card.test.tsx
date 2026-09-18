@@ -14,6 +14,7 @@ describe("ActivityCard", () => {
     expect(screen.getByText("09:30–11:00")).toBeInTheDocument();
     expect(screen.getByText("Activity")).toBeInTheDocument();
     expect(screen.getByText("€10–30 per person")).toBeInTheDocument();
+    expect(screen.getByTitle("Estimated effort for this stop")).toHaveTextContent(/Easy|Moderate|Demanding/);
     expect(screen.getByText("Why RoamAI chose this for you")).toBeInTheDocument();
     expect(screen.getByText(item.reason)).toBeInTheDocument();
   });

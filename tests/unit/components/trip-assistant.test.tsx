@@ -16,7 +16,13 @@ function json(status: number, body: unknown) {
 
 /** fetch stub answering the assistant and the save endpoint separately. */
 function stubFetch({
-  assistant = () => json(200, { reply: RAIN_REPLY, day: makeRainyDay(), changes: RAIN_CHANGES }),
+  assistant = () =>
+    json(200, {
+      reply: RAIN_REPLY,
+      day: makeRainyDay(),
+      changes: RAIN_CHANGES,
+      energy: { before: { score: 118, percent: 98, level: "heavy" }, after: { score: 76, percent: 63, level: "steady" } },
+    }),
   save = () => json(200, { trip: replaceDay(trip, makeRainyDay()) }),
 }: { assistant?: () => Response; save?: () => Response } = {}) {
   const fetchMock = vi.fn(async (url: string) => (url === "/api/trips/assistant" ? assistant() : save()));
@@ -61,6 +67,30 @@ describe("TripAssistant", () => {
     expect(changes).toHaveTextContent("Add Museu Nacional do Azulejo");
     expect(changes).toHaveTextContent("Remove Taberna da Rua das Flores");
     expect(bodyOf(fetchMock, 0)).toEqual({ trip, day: 1, message: "It's raining", anotherOption: false });
+  });
+
+  it("shows how much lighter (or heavier) the day becomes", async () => {
+    stubFetch();
+    const { panel, user } = renderAssistant();
+    await askAboutRain(user, panel);
+
+    expect(within(panel).getByText(/Effort: Heavy day 118 → Steady day 76/)).toBeInTheDocument();
+  });
+
+  it("says nothing about effort when it doesn't change", async () => {
+    stubFetch({
+      assistant: () =>
+        json(200, {
+          reply: RAIN_REPLY,
+          day: makeRainyDay(),
+          changes: RAIN_CHANGES,
+          energy: { before: { score: 90, percent: 75, level: "steady" }, after: { score: 90, percent: 75, level: "steady" } },
+        }),
+    });
+    const { panel, user } = renderAssistant();
+    await askAboutRain(user, panel);
+
+    expect(within(panel).queryByText(/Effort:/)).not.toBeInTheDocument();
   });
 
   it("applies a tab-only trip's change locally", async () => {

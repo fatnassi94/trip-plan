@@ -13,9 +13,12 @@ import {
   Plus,
   RotateCcw,
   Sparkles,
+  TrendingDown,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import { hasChanges, replaceDay, type DayChanges } from "@/lib/itinerary";
+import { describeEnergyLevel, type EnergyLevel } from "@/lib/energy";
 import type { Trip, TripDay } from "@/types/trip";
 
 // 10 — AI Assistant, "Edit via ✨ Chat". The traveler asks for a change to
@@ -32,9 +35,17 @@ const QUICK_PROMPTS = [
   { icon: Coffee, label: "Add a coffee break", message: "Add a relaxed coffee break that fits between the existing stops." },
 ];
 
+interface EnergySummary {
+  score: number;
+  percent: number;
+  level: EnergyLevel;
+}
+
 interface Proposal {
   day: TripDay;
   changes: DayChanges;
+  /** Effort before and after, from the server (lib/energy.ts). */
+  energy?: { before: EnergySummary; after: EnergySummary };
 }
 
 type AssistantReply = {
@@ -116,7 +127,9 @@ export function TripAssistant({
         text: payload.reply as string,
         dayNumber: targetDay,
         request: text,
-        proposal: hasChanges(changes) ? { day: payload.day as TripDay, changes } : null,
+        proposal: hasChanges(changes)
+          ? { day: payload.day as TripDay, changes, energy: payload.energy }
+          : null,
         status: "open",
       });
     } catch (err) {
@@ -271,6 +284,7 @@ export function TripAssistant({
               {message.proposal ? (
                 <>
                   <ChangeList changes={message.proposal.changes} />
+                  <EnergyChange energy={message.proposal.energy} />
                   {message.error ? (
                     <p role="alert" className="mt-2 text-xs text-warm">
                       {message.error}
@@ -400,6 +414,32 @@ function AssistantBubble({
         {children}
       </div>
     </div>
+  );
+}
+
+function EnergyChange({
+  energy,
+}: {
+  energy?: { before: EnergySummary; after: EnergySummary };
+}) {
+  if (!energy || energy.before.score === energy.after.score) return null;
+  const lighter = energy.after.score < energy.before.score;
+
+  return (
+    <p
+      className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-display text-xs font-semibold ${
+        lighter ? "bg-sage/20 text-accent" : "bg-warm-soft text-warm"
+      }`}
+    >
+      {lighter ? (
+        <TrendingDown className="h-3.5 w-3.5" aria-hidden="true" />
+      ) : (
+        <TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />
+      )}
+      Effort: {describeEnergyLevel(energy.before.level).label} {energy.before.score} →{" "}
+      {describeEnergyLevel(energy.after.level).label} {energy.after.score}
+      <span className="sr-only"> (estimated)</span>
+    </p>
   );
 }
 

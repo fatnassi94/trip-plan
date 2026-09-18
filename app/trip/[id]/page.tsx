@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   ArrowRight,
+  BatteryLow,
   CalendarDays,
   Clock,
   Columns2,
@@ -19,12 +20,13 @@ import {
 } from "lucide-react";
 import { RouteArt } from "@/components/brand/route-art";
 import { ActivityCard } from "@/components/trip/activity-card";
+import { EnergyBadge } from "@/components/trip/energy-badge";
 import { TripAssistant } from "@/components/trip/trip-assistant";
 import { useTrip } from "@/components/trip/use-trip";
 import { formatTripDay, formatTripRange } from "@/lib/date";
 import { formatDuration, isMapped, summarizeDay } from "@/lib/itinerary";
 import { cacheTrip } from "@/lib/trip-store";
-import { estimateWalkingKm } from "@/lib/trip-rules";
+import { summarizePacing, tripEnergy } from "@/lib/energy";
 import type { Trip } from "@/types/trip";
 
 // MapLibre touches `window` at import, so it only loads in the browser.
@@ -116,7 +118,9 @@ export default function TripOverviewPage() {
   const allItems = trip.days.flatMap((d) => d.items);
   const summary = summarizeDay(day);
   const dayDate = formatTripDay(trip.startDate, day.day);
-  const walkingKm = estimateWalkingKm(day);
+  const energy = tripEnergy(trip);
+  const dayEnergyToday = energy.days.find((d) => d.day === day.day) ?? energy.days[0];
+  const walkingKm = dayEnergyToday?.walkingKm ?? null;
 
   function handleApplied(next: Trip) {
     setEdited(next);
@@ -200,6 +204,7 @@ export default function TripOverviewPage() {
             <HeroStat label="Days" value={trip.days.length} />
             <HeroStat label="Stops" value={allItems.length} />
             <HeroStat label="Mapped" value={allItems.filter(isMapped).length} />
+            <HeroStat label="Pacing" value={summarizePacing(energy.days)} wide />
           </dl>
         </div>
       </section>
@@ -258,6 +263,19 @@ export default function TripOverviewPage() {
         </div>
       </div>
 
+      {energy.issues.length ? (
+        <div
+          role="status"
+          className="mt-4 flex items-start gap-2.5 rounded-lg bg-warm-soft px-4 py-3 text-sm text-warm"
+        >
+          <BatteryLow className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            <span className="font-display font-semibold">Pacing</span>{" "}
+            {energy.issues.join(" ")} Ask the assistant to lighten one of them.
+          </span>
+        </div>
+      ) : null}
+
       <div className="mt-6 grid items-start gap-6 pb-4 lg:grid-cols-12">
         {view !== "map" ? (
           <section className={view === "itinerary" ? "lg:col-span-8" : "lg:col-span-7"}>
@@ -270,7 +288,10 @@ export default function TripOverviewPage() {
                   <p className="font-mono text-[0.6rem] font-bold uppercase tracking-widest text-warm">
                     {dayDate ?? `Day ${day.day}`}
                   </p>
-                  <p className="truncate font-display font-semibold text-accent">{day.title}</p>
+                  <p className="flex flex-wrap items-center gap-2">
+                    <span className="truncate font-display font-semibold text-accent">{day.title}</span>
+                    {dayEnergyToday ? <EnergyBadge energy={dayEnergyToday} /> : null}
+                  </p>
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted">
                     <span>
                       {summary.stops} {summary.stops === 1 ? "stop" : "stops"}
@@ -387,13 +408,25 @@ export default function TripOverviewPage() {
   );
 }
 
-function HeroStat({ label, value }: { label: string; value: number }) {
+function HeroStat({
+  label,
+  value,
+  wide,
+}: {
+  label: string;
+  value: number | string;
+  wide?: boolean;
+}) {
   return (
-    <div className="min-w-[5.5rem] rounded-md bg-paper/10 px-4 py-3 ring-1 ring-paper/15 backdrop-blur-md">
+    <div
+      className={`min-w-[5.5rem] rounded-md bg-paper/10 px-4 py-3 ring-1 ring-paper/15 backdrop-blur-md ${wide ? "col-span-3 sm:col-span-1" : ""}`}
+    >
       <dt className="font-mono text-[0.6rem] font-bold uppercase tracking-widest text-accent-soft/80">
         {label}
       </dt>
-      <dd className="mt-0.5 font-display text-2xl font-bold tabular-nums">{value}</dd>
+      <dd className={`mt-0.5 font-display font-bold ${wide ? "text-sm" : "text-2xl tabular-nums"}`}>
+        {value}
+      </dd>
     </div>
   );
 }

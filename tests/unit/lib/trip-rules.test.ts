@@ -51,6 +51,15 @@ describe("estimateWalkingKm", () => {
     expect(estimateWalkingKm(withTram)).toBeCloseTo(distanceKm(taberna, miradouro) * WALKING_DETOUR_FACTOR, 10);
   });
 
+  it("doesn't count a leg too long to walk as walking", () => {
+    // Castle → Belém is ~6.6 km: that's a tram ride, not a stroll.
+    const acrossTown = {
+      ...day,
+      items: [day.items[0], makeItem({ name: "Mosteiro dos Jerónimos", start: "14:00", ...belem })],
+    };
+    expect(estimateWalkingKm(acrossTown)).toBe(0);
+  });
+
   it("returns null — unknown, not zero — when fewer than two stops can be placed", () => {
     expect(estimateWalkingKm(makeTrip().days[1])).toBeNull();
     const unplaced = { ...day, items: day.items.map((i) => ({ ...i, lat: undefined, lng: undefined })) };

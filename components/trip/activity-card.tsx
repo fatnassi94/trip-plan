@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { buildMapLinks, formatPriceEstimate } from "@/lib/trip-links";
 import { addMinutes, dayPart, formatDuration } from "@/lib/itinerary";
+import { describeItemEffort, itemEnergy } from "@/lib/energy";
 import type { ItemType, ItineraryItem } from "@/types/trip";
 
 interface ActivityCardProps {
@@ -42,6 +43,9 @@ export function ActivityCard({ item, destination }: ActivityCardProps) {
   const links = buildMapLinks(item, destination);
   const suggestions = item.suggestions?.filter(Boolean) ?? [];
   const type = TYPE_STYLE[item.type] ?? TYPE_STYLE.activity;
+  // Effort without the walk to get here: the card doesn't know what came
+  // before it. The day header (lib/energy.ts) counts the walking.
+  const effort = describeItemEffort(itemEnergy(item));
 
   return (
     <article className="group rounded-lg bg-surface p-5 shadow-card transition-shadow duration-300 hover:shadow-lift">
@@ -58,7 +62,8 @@ export function ActivityCard({ item, destination }: ActivityCardProps) {
           </span>
         </div>
         <span className="font-display text-xs font-semibold text-muted">
-          {formatDuration(item.durationMinutes)} · <span className="text-warm">{price}</span>
+          {formatDuration(item.durationMinutes)} · <span className="text-warm">{price}</span> ·{" "}
+          <span title="Estimated effort for this stop">{effort}</span>
         </span>
       </div>
 

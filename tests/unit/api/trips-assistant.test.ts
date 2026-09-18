@@ -81,7 +81,17 @@ describe("POST /api/trips/assistant", () => {
       const res = await ask({ trip: tampered, anotherOption: true });
 
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ reply: RAIN_REPLY, day: makeRainyDay(), changes: RAIN_CHANGES });
+      const body = await res.json();
+      expect(body).toMatchObject({ reply: RAIN_REPLY, day: makeRainyDay(), changes: RAIN_CHANGES });
+      // The effort of the day before and after the change, so "I'm tired"
+      // can be checked rather than taken on trust.
+      expect(body.energy.before).toMatchObject({
+        score: expect.any(Number),
+        percent: expect.any(Number),
+        level: expect.stringMatching(/light|steady|heavy/),
+      });
+      expect(body.energy.after.score).toBeLessThan(body.energy.before.score);
+      expect(body.energy.before).not.toHaveProperty("items");
       expect(reviseTripDay).toHaveBeenCalledWith({
         trip,
         dayNumber: 1,

@@ -19,6 +19,13 @@ export interface RuleViolation {
  */
 export const WALKING_DETOUR_FACTOR = 1.3;
 
+/**
+ * Nobody walks between stops this far apart — a leg longer than this is
+ * assumed to be covered by transport, even when the itinerary doesn't say
+ * so, rather than inflating walking totals with a 20 km "stroll".
+ */
+export const MAX_WALKED_LEG_KM = 5;
+
 const EARTH_RADIUS_KM = 6371;
 
 /** Great-circle distance between two points, in km. */
@@ -38,33 +45,51 @@ function byStart(items: ItineraryItem[]): ItineraryItem[] {
   return [...items].sort((a, b) => (toMinutes(a.start) ?? 0) - (toMinutes(b.start) ?? 0));
 }
 
+export interface WalkingLeg {
+  item: ItineraryItem;
+  /** Estimated km walked to reach this stop (0 for the first, or when unknown). */
+  km: number;
+}
+
 /**
- * Estimated walking for a day: the legs between consecutive stops that
- * both have coordinates, times the detour factor. A transit item between
- * two stops means that leg isn't walked. Returns null when fewer than two
- * stops can be placed — "unknown", not zero.
+ * The walking legs of a day, in start order: for each non-transit stop,
+ * how far it is from the previous one. A transit item between two stops
+ * means that leg wasn't walked, and a stop without coordinates breaks the
+ * chain rather than guessing.
  */
-export function estimateWalkingKm(day: TripDay): number | null {
+export function walkingLegs(day: TripDay): WalkingLeg[] {
+  const legs: WalkingLeg[] = [];
   let previous: ItineraryItem | null = null;
-  let legs = 0;
-  let km = 0;
 
   for (const item of byStart(day.items)) {
     if (item.type === "transit") {
       previous = null;
       continue;
     }
-    if (item.lat == null || item.lng == null) continue;
-    if (previous?.lat != null && previous.lng != null) {
-      km += distanceKm({ lat: previous.lat, lng: previous.lng }, { lat: item.lat, lng: item.lng });
-      legs += 1;
-    }
-    previous = item;
+    const placed = item.lat != null && item.lng != null;
+    const from = previous?.lat != null && previous.lng != null ? previous : null;
+    const km =
+      placed && from
+        ? distanceKm(
+            { lat: from.lat as number, lng: from.lng as number },
+            { lat: item.lat as number, lng: item.lng as number },
+          ) * WALKING_DETOUR_FACTOR
+        : 0;
+    legs.push({ item, km: km > MAX_WALKED_LEG_KM ? 0 : km });
+    if (placed) previous = item;
   }
 
+  return legs;
+}
+
+/**
+ * Estimated walking for a day, in km. Returns null when fewer than two
+ * stops can be placed — "unknown", not zero.
+ */
+export function estimateWalkingKm(day: TripDay): number | null {
   const located = day.items.filter((i) => i.type !== "transit" && i.lat != null && i.lng != null);
   if (located.length < 2) return null;
-  return legs === 0 ? 0 : km * WALKING_DETOUR_FACTOR;
+  return walkingLegs(day).reduce((total, leg) => total + leg.km, 0);
 }
 
 /** "museums" and "museum" are the same rule. */

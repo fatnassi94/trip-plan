@@ -3,6 +3,7 @@ import { z } from "zod";
 import { reviseTripDay } from "@/lib/ai/provider";
 import { TripSchema, type ValidatedTrip } from "@/lib/ai/schema";
 import { diffDay } from "@/lib/itinerary";
+import { dayEnergy, type DayEnergy } from "@/lib/energy";
 import { assistantRateLimiter } from "@/lib/rate-limit";
 import { createSessionClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { isAuthConfigured } from "@/lib/supabase/config";
@@ -112,6 +113,11 @@ export async function POST(req: Request) {
       reply: revision.reply,
       day: revision.day,
       changes: diffDay(current, revision.day),
+      // So "I'm tired" can be checked, not just promised.
+      energy: {
+        before: slimEnergy(dayEnergy(current, trip.profile)),
+        after: slimEnergy(dayEnergy(revision.day, trip.profile)),
+      },
     });
   } catch (err) {
     console.error("Assistant revision failed", err);
@@ -120,6 +126,11 @@ export async function POST(req: Request) {
       { status: 502 },
     );
   }
+}
+
+/** Just the headline numbers — the browser doesn't need the per-stop breakdown. */
+function slimEnergy(energy: DayEnergy) {
+  return { score: energy.score, percent: energy.percent, level: energy.level };
 }
 
 function clientIp(req: Request): string {

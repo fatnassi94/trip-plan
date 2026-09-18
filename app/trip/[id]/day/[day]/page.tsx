@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, CalendarDays, Clock, MapPin, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, Clock, Footprints, MapPin, UtensilsCrossed } from "lucide-react";
 import { RouteArt } from "@/components/brand/route-art";
 import { ActivityCard } from "@/components/trip/activity-card";
+import { EnergyBadge } from "@/components/trip/energy-badge";
 import { useTrip } from "@/components/trip/use-trip";
 import { formatTripDay } from "@/lib/date";
 import { formatDuration, summarizeDay } from "@/lib/itinerary";
+import { dayEnergy } from "@/lib/energy";
 
 // 08 — Day Detail. Every activity is a card carrying its "Why I chose
 // this for you" line — see the travel-domain skill: an item without a
@@ -54,6 +56,7 @@ export default function DayDetailPage() {
   }
 
   const summary = summarizeDay(day);
+  const energy = dayEnergy(day, trip.profile);
   const dayDate = formatTripDay(trip.startDate, day.day);
   const prev = trip.days.find((d) => d.day === day.day - 1);
   const next = trip.days.find((d) => d.day === day.day + 1);
@@ -87,7 +90,10 @@ export default function DayDetailPage() {
         <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-balance sm:text-4xl">
           {day.title}
         </h1>
-        <ul className="mt-5 flex flex-wrap gap-2 text-xs">
+        <ul className="mt-5 flex flex-wrap items-center gap-2 text-xs">
+          <li>
+            <EnergyBadge energy={energy} className="bg-paper/15 text-paper" />
+          </li>
           <HeaderPill icon={MapPin}>
             {summary.stops} {summary.stops === 1 ? "stop" : "stops"}
           </HeaderPill>
@@ -95,6 +101,9 @@ export default function DayDetailPage() {
             <HeaderPill icon={Clock}>
               {summary.firstStart}–{summary.lastEnd} · {formatDuration(summary.plannedMinutes)} planned
             </HeaderPill>
+          ) : null}
+          {energy.walkingKm != null ? (
+            <HeaderPill icon={Footprints}>~{energy.walkingKm.toFixed(1)} km walking (est.)</HeaderPill>
           ) : null}
           {summary.meals ? (
             <HeaderPill icon={UtensilsCrossed}>

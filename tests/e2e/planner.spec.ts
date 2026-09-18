@@ -72,6 +72,9 @@ test("plans a trip from the landing page through to the whole-trip map", async (
   await expect(page).toHaveURL(/\/trip\/local$/);
   await expect(page.getByRole("heading", { level: 1, name: "Lisbon, Portugal" })).toBeVisible();
   await expect(page.getByText(trip.days[0].items[0].reason)).toBeVisible();
+  // Energy + pace intelligence: how tiring the day is, and the trip's shape.
+  await expect(page.getByText(/^(Light|Steady|Heavy) day/)).toBeVisible();
+  await expect(page.getByRole("definition").filter({ hasText: /light|steady|heavy/ })).toBeVisible();
 
   await page.getByRole("tab", { name: /Day 2/ }).click();
   await expect(page.getByRole("heading", { name: "Mosteiro dos Jerónimos" })).toBeVisible();

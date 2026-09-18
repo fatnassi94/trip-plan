@@ -45,7 +45,17 @@ test("asks the assistant to rework a rainy day, applies it, and the trip is save
   let sent: unknown;
   await page.route("**/api/trips/assistant", async (route) => {
     sent = route.request().postDataJSON();
-    await route.fulfill({ json: { reply: RAIN_REPLY, day: makeRainyDay(), changes: RAIN_CHANGES } });
+    await route.fulfill({
+      json: {
+        reply: RAIN_REPLY,
+        day: makeRainyDay(),
+        changes: RAIN_CHANGES,
+        energy: {
+          before: { score: 120, percent: 100, level: "heavy" },
+          after: { score: 70, percent: 58, level: "steady" },
+        },
+      },
+    });
   });
 
   const assistant = page.getByRole("region", { name: "RoamAI Assistant" });
@@ -55,6 +65,7 @@ test("asks the assistant to rework a rainy day, applies it, and the trip is save
 
   await expect(assistant.getByText(RAIN_REPLY)).toBeVisible();
   await expect(assistant.getByRole("list", { name: "Proposed changes" })).toContainText("Add Museu Nacional do Azulejo");
+  await expect(assistant.getByText(/Effort: Heavy day 120 → Steady day 70/)).toBeVisible();
   expect(sent).toMatchObject({ tripId: TRIP_ID, day: 1 });
   expect(sent).not.toHaveProperty("trip");
 

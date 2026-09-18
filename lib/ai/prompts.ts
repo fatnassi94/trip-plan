@@ -1,3 +1,4 @@
+import { dayEnergy } from "@/lib/energy";
 import type { Trip, TripRequest } from "@/types/trip";
 
 // Kept separate from provider code on purpose: the prompt is the one thing
@@ -24,6 +25,12 @@ Rules:
   — never generic filler like "explore the area". Only include "lat"/"lng"
   when you're reasonably confident of the coordinates; omit them rather
   than guess.
+- Balance effort across the trip: don't put two demanding days back to
+  back. A day's effort comes from how long its stops last, how far apart
+  they are, and how strenuous they are (hikes, nightlife and packed
+  landmark days cost more than gardens, cafés and neighborhood strolls).
+  "profile.pace" and "profile.walkingTolerance" set how much one day can
+  hold; follow a demanding day with a lighter one.
 - "profile.constraints" are HARD rules the traveler set, checked in code
   after you answer: no item starts before "earliestStart"; every item has
   ended by "latestEnd"; at most "maxStopsPerDay" non-transit items a day;
@@ -85,6 +92,10 @@ Rules:
 - Never invent a venue you're not reasonably confident exists. Prefer
   well-known places or neighborhood-level activities, and don't repeat a
   stop already planned on another day.
+- "dayEnergy" is this day's estimated effort out of the traveler's usual
+  capacity ("light", "steady" or "heavy"). If they say they're tired, want
+  it lighter or have less time, return a day whose effort is clearly lower
+  — fewer stops, shorter visits, less distance between them.
 - "hardConstraints" are the traveler's own rules (same meaning as when the
   trip was planned: earliestStart, latestEnd, maxStopsPerDay,
   maxActivityMinutes, avoidTags, maxWalkingKmPerDay). Never break them,
@@ -108,17 +119,24 @@ export function buildAssistantUserPrompt({
   message: string;
   anotherOption?: boolean;
 }): string {
+  const dayToRevise = trip.days.find((d) => d.day === dayNumber);
+  const energy = dayToRevise ? dayEnergy(dayToRevise, trip.profile) : null;
+  const energySummary = energy
+    ? { level: energy.level, effort: energy.score, capacity: energy.capacity }
+    : undefined;
+
   return JSON.stringify({
     destination: trip.destination,
     startDate: trip.startDate,
     endDate: trip.endDate,
     travelers: trip.travelers,
-    dayToRevise: trip.days.find((d) => d.day === dayNumber),
+    dayToRevise,
     // Just enough of the rest of the trip to avoid repeating a stop.
     otherDays: trip.days
       .filter((d) => d.day !== dayNumber)
       .map((d) => ({ day: d.day, title: d.title, stops: d.items.map((item) => item.name) })),
     hardConstraints: trip.profile?.constraints,
+    dayEnergy: energySummary,
     travelerMessage: message,
     alternative: anotherOption
       ? "The traveler asked for another option: propose a genuinely different change than the most obvious one."
