@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { generateTrip } from "@/lib/ai/provider";
+import { aiErrorResponse } from "@/lib/ai/errors";
 import { TravelerProfileSchema } from "@/lib/travel-dna";
 import { createServiceRoleClient, createSessionClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import { isAuthConfigured } from "@/lib/supabase/config";
@@ -105,9 +106,18 @@ export async function POST(req: Request) {
     trip = { ...(await generateTrip(parsed.data)), profile: parsed.data.profile };
   } catch (err) {
     console.error("Trip generation failed", err);
+    // "Busy", "out of quota" and "the model wrote nonsense" are three
+    // different problems and send the traveler somewhere different.
+    const { status, error, retryAfterSeconds } = aiErrorResponse(
+      err,
+      "The AI could not build a valid trip. Try again.",
+    );
     return NextResponse.json(
-      { error: "The AI could not build a valid trip. Try again." },
-      { status: 502 },
+      { error },
+      {
+        status,
+        headers: retryAfterSeconds ? { "Retry-After": String(retryAfterSeconds) } : undefined,
+      },
     );
   }
 

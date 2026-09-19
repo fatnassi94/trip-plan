@@ -28,7 +28,7 @@ export const PLANS: readonly Plan[] = [
     priceLabel: "$8",
     interval: "one-time",
     tagline: "Pay once, no subscription",
-    features: ["This trip, unlocked in full", "Day-by-day itinerary", "Maps and 360° views"],
+    features: ["This trip, unlocked in full", "Day-by-day itinerary", "Maps and photos of every stop"],
     highlight: true,
   },
   {

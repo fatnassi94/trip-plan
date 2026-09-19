@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { reviseTripDay } from "@/lib/ai/provider";
+import { aiErrorResponse } from "@/lib/ai/errors";
 import { TripSchema, type ValidatedTrip } from "@/lib/ai/schema";
 import { diffDay } from "@/lib/itinerary";
 import { dayEnergy, type DayEnergy } from "@/lib/energy";
@@ -121,9 +122,17 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     console.error("Assistant revision failed", err);
+    // Don't tell someone to rephrase when the service was simply busy.
+    const { status, error, retryAfterSeconds } = aiErrorResponse(
+      err,
+      "The assistant couldn't come up with a change that fits your day. Try rephrasing.",
+    );
     return NextResponse.json(
-      { error: "The assistant couldn't come up with a change that fits your day. Try rephrasing." },
-      { status: 502 },
+      { error },
+      {
+        status,
+        headers: retryAfterSeconds ? { "Retry-After": String(retryAfterSeconds) } : undefined,
+      },
     );
   }
 }

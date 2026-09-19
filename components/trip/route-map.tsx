@@ -48,11 +48,34 @@ interface RouteMapProps {
   onSelectStop?: (key: string) => void;
   /** How long to wait for the first render before showing the fallback. */
   loadTimeoutMs?: number;
+  /**
+   * "One place, up close" instead of "the whole day": tilts the camera and
+   * zooms in. What the stop dialog uses.
+   */
+  focus?: boolean;
 }
 
 type MapStatus = "loading" | "ready" | "failed";
 
 const ROUTE_SOURCE_ID = "roamai-route";
+const ROUTE_CASING_ID = "roamai-route-casing";
+
+/**
+ * Pre-computed dash patterns, stepped through on a timer. MapLibre has no
+ * animatable dash-offset, so the classic trick is to cycle the dasharray
+ * itself; each frame shifts the gap a little further along the line, which
+ * reads as the route flowing toward the next stop.
+ */
+const DASH_FRAMES: [number, number][] = [
+  [0, 4],
+  [0.5, 3.5],
+  [1, 3],
+  [1.5, 2.5],
+  [2, 2],
+  [2.5, 1.5],
+  [3, 1],
+  [3.5, 0.5],
+];
 
 type MarkerMap = Map<string, Marker>;
 
@@ -71,6 +94,7 @@ function RouteMapCanvas({
   selectedKey,
   onSelectStop,
   loadTimeoutMs = 20_000,
+  focus = false,
   onRetry,
 }: RouteMapProps & { onRetry: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -85,6 +109,7 @@ function RouteMapCanvas({
   // rather than run immediately.
   const teardownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dashTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [status, setStatus] = useState<MapStatus>("loading");
   // True only once the worker has actually processed the route line — the
@@ -167,15 +192,28 @@ function RouteMapCanvas({
         type: "geojson",
         data: routeGeoJSON(stops),
       });
+      // Two layers, not one: a soft wide casing underneath so the route
+      // reads against busy tiles, and the dashed line on top that moves.
+      map.addLayer({
+        id: ROUTE_CASING_ID,
+        type: "line",
+        source: ROUTE_SOURCE_ID,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": accent, "line-width": 7, "line-opacity": 0.14, "line-blur": 3 },
+      });
       map.addLayer({
         id: ROUTE_SOURCE_ID,
         type: "line",
         source: ROUTE_SOURCE_ID,
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": accent, "line-width": 2.5, "line-dasharray": [0.2, 1.6] },
+        paint: { "line-color": accent, "line-width": 2.5, "line-dasharray": DASH_FRAMES[0] },
       });
       syncMarkers(map, stops, accent, paper, markersRef, onSelectRef, selectedKey ?? null);
-      fitToStops(map, stops, reducedMotion);
+      fitToStops(map, stops, reducedMotion, focus);
+      if (!reducedMotion) {
+        dropMarkersIn(markersRef);
+        dashTimerRef.current = startDashFlow(map);
+      }
       setStatus("ready");
     });
 
@@ -188,6 +226,7 @@ function RouteMapCanvas({
     function scheduleTeardown() {
       teardownRef.current = setTimeout(() => {
         if (loadTimeoutRef.current) clearTimeout(loadTimeoutRef.current);
+        if (dashTimerRef.current) clearInterval(dashTimerRef.current);
         markersRef.current.forEach((m) => m.remove());
         markersRef.current.clear();
         mapRef.current?.remove();
@@ -227,11 +266,20 @@ function RouteMapCanvas({
     const stop = stops.find((s) => s.key === selectedKey);
     if (!stop) return;
 
-    map.easeTo({
-      center: [stop.lng, stop.lat],
-      zoom: Math.max(map.getZoom(), 14),
-      duration: reducedMotion ? 0 : 600,
-    });
+    if (reducedMotion) {
+      map.jumpTo({ center: [stop.lng, stop.lat], zoom: Math.max(map.getZoom(), 14) });
+    } else {
+      // flyTo arcs out and back down rather than sliding flat across the
+      // city — the movement itself tells you the two stops are apart.
+      map.flyTo({
+        center: [stop.lng, stop.lat],
+        zoom: Math.max(map.getZoom(), 15),
+        pitch: 45,
+        curve: 1.42,
+        speed: 0.9,
+        essential: true,
+      });
+    }
     markersRef.current.forEach((marker, key) => {
       marker.getElement().classList.toggle("roam-marker-active", key === selectedKey);
     });
@@ -301,10 +349,22 @@ function routeGeoJSON(stops: RouteMapStop[]): GeoJSON.Feature<GeoJSON.LineString
   };
 }
 
-function fitToStops(map: MaplibreMap, stops: RouteMapStop[], reducedMotion: boolean) {
+function fitToStops(
+  map: MaplibreMap,
+  stops: RouteMapStop[],
+  reducedMotion: boolean,
+  focus = false,
+) {
   if (stops.length === 0) return;
   if (stops.length === 1) {
-    map.jumpTo({ center: [stops[0].lng, stops[0].lat], zoom: 13 });
+    const [only] = stops;
+    // Focus mode is "stand here and look around", so it opens tilted and
+    // close; the overview stays flat and wide.
+    map.jumpTo({
+      center: [only.lng, only.lat],
+      zoom: focus ? 16.5 : 13,
+      pitch: focus && !reducedMotion ? 55 : 0,
+    });
     return;
   }
   const bounds = stops.reduce(
@@ -312,6 +372,38 @@ function fitToStops(map: MaplibreMap, stops: RouteMapStop[], reducedMotion: bool
     new LngLatBounds([stops[0].lng, stops[0].lat], [stops[0].lng, stops[0].lat]),
   );
   map.fitBounds(bounds, { padding: 56, duration: reducedMotion ? 0 : 600 });
+}
+
+/**
+ * Pins arrive one after another instead of all at once. Purely additive:
+ * the class only drives a CSS keyframe, so a marker that never gets it
+ * (reduced motion) still sits exactly where it should.
+ */
+function dropMarkersIn(markersRef: MutableRefObject<MarkerMap>) {
+  let index = 0;
+  markersRef.current.forEach((marker) => {
+    const el = marker.getElement();
+    el.style.setProperty("--roam-marker-delay", `${index * 70}ms`);
+    el.classList.add("roam-marker-drop");
+    index += 1;
+  });
+}
+
+/** Steps the dashed route through DASH_FRAMES so it flows onward. */
+function startDashFlow(map: MaplibreMap): ReturnType<typeof setInterval> {
+  let frame = 0;
+  return setInterval(() => {
+    frame = (frame + 1) % DASH_FRAMES.length;
+    try {
+      // The layer is gone the moment the map is torn down mid-interval,
+      // and a style reload can briefly invalidate it too. The next tick
+      // picks it back up — never worth breaking the map over.
+      if (!map.getLayer(ROUTE_SOURCE_ID)) return;
+      map.setPaintProperty(ROUTE_SOURCE_ID, "line-dasharray", DASH_FRAMES[frame]);
+    } catch {
+      /* ignored on purpose — see above */
+    }
+  }, 90);
 }
 
 function syncMarkers(

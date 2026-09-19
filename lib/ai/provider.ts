@@ -7,6 +7,7 @@ import {
   buildTripUserPrompt,
 } from "./prompts";
 import { geminiProvider } from "./providers/gemini";
+import { isAIProviderError } from "./errors";
 
 // The one rule this file exists to enforce: nothing else in the codebase
 // calls an AI SDK directly. Routes and components call `generateTrip()`
@@ -59,6 +60,13 @@ async function generateValidated<T>(
   try {
     return await attempt();
   } catch (firstError) {
+    // A service failure is not the model getting the JSON wrong. Sending
+    // the prompt again with "your previous response was invalid: 503
+    // UNAVAILABLE" cannot help, doubles the latency, and on a small free
+    // tier burns the daily quota twice as fast. The adapter has already
+    // done its own retries and model fallbacks by this point, so stop.
+    if (isAIProviderError(firstError)) throw firstError;
+
     // One repair pass: tell the model exactly what it got wrong. If this
     // also fails, surface the error — never fall back to unvalidated output.
     const message = firstError instanceof Error ? firstError.message : String(firstError);

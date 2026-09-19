@@ -9,6 +9,7 @@
    carry the theme-aware colors a paint expression can't read from
    var(--accent) directly. */
 .roam-marker {
+  position: relative; /* the active-pin halo below anchors to this */
   width: 26px;
   height: 26px;
   border-radius: 9999px;
@@ -29,9 +30,56 @@
 .roam-marker-active {
   transform: scale(1.25);
 }
+
+/* Pins arrive one after another rather than all at once. The delay is set
+   per marker in components/trip/route-map.tsx. */
+@keyframes roam-marker-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.6);
+  }
+  60% {
+    transform: translateY(2px) scale(1.08);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.roam-marker-drop {
+  animation: roam-marker-drop 420ms var(--ease-out-soft, ease) backwards;
+  animation-delay: var(--roam-marker-delay, 0ms);
+}
+
+/* The selected pin keeps a soft halo so it stays findable while the
+   camera is moving. */
+.roam-marker-active::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 9999px;
+  border: 2px solid var(--roam-marker-accent);
+  opacity: 0.45;
+  animation: roam-marker-halo 1.8s ease-out infinite;
+}
+@keyframes roam-marker-halo {
+  from {
+    transform: scale(0.85);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .roam-marker {
     transition: none;
+  }
+  .roam-marker-drop,
+  .roam-marker-active::after {
+    animation: none;
   }
 }
 

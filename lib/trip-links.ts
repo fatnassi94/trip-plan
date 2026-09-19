@@ -6,14 +6,18 @@ import type { ItineraryItem } from "@/types/trip";
 // always be answerable by reading a pure function, not by inspecting a
 // component's render output.
 //
-// Deliberately built entirely from keyless, public URL schemes:
+// Built entirely from keyless, public URL schemes:
 //   - a Google Maps search/pano deep link (no API key required — this is
 //     the same URL your browser produces for "Open in Google Maps")
 //   - an OpenStreetMap embed + view link (OSM's export/embed endpoint
 //     needs no key or account at all)
-// This keeps the "free tier" ethos already established for the Gemini
-// key, and avoids introducing a new secret/NEXT_PUBLIC_* var this
-// project doesn't otherwise need — see api-security / ai-security.
+// This keeps the "free tier" ethos already established for the Gemini key.
+//
+// There was briefly a Maps Embed URL here, to frame Street View inside the
+// stop dialog. It came out again: the Embed API's *usage* is free, but
+// getting a key means a Google Cloud billing account, and this project
+// won't put a card behind a feature. The dialog shows real photography
+// instead — see components/trip/use-stop-photos.ts.
 
 export interface MapLinks {
   /** Always present: a Google Maps search for the venue. */
@@ -31,7 +35,12 @@ export function buildMapLinks(item: ItineraryItem, destination: string): MapLink
   const googleSearchUrl = `https://www.google.com/maps/search/?api=1&query=${query}`;
 
   if (item.lat == null || item.lng == null) {
-    return { googleSearchUrl, streetViewUrl: null, osmEmbedUrl: null, osmViewUrl: null };
+    return {
+      googleSearchUrl,
+      streetViewUrl: null,
+      osmEmbedUrl: null,
+      osmViewUrl: null,
+    };
   }
 
   const { lat, lng } = item;

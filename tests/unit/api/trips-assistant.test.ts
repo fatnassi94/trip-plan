@@ -9,6 +9,7 @@ vi.mock("@/lib/supabase/server", async (importOriginal) => ({
 
 import { POST } from "@/app/api/trips/assistant/route";
 import { reviseTripDay } from "@/lib/ai/provider";
+import { AIProviderError } from "@/lib/ai/errors";
 import { assistantRateLimiter } from "@/lib/rate-limit";
 import { createSessionClient } from "@/lib/supabase/server";
 import { argsOf, configureEnv, fakeSupabase, jsonRequest } from "@/tests/unit/helpers/api";
@@ -112,6 +113,15 @@ describe("POST /api/trips/assistant", () => {
       const res = await ask({});
       expect(res.status).toBe(502);
       expect(JSON.stringify(await res.json())).not.toMatch(/quota|GEMINI|1234/);
+    });
+
+    it("doesn't tell the traveler to rephrase when the service was simply busy", async () => {
+      signedIn();
+      vi.mocked(reviseTripDay).mockRejectedValue(new AIProviderError("overloaded", "high demand"));
+      const res = await ask({});
+      expect(res.status).toBe(503);
+      expect(res.headers.get("Retry-After")).toBe("30");
+      expect((await res.json()).error).not.toMatch(/rephras/i);
     });
 
     it("rate limits a traveler after 12 requests, with Retry-After", async () => {

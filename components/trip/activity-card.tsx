@@ -7,10 +7,12 @@ import {
   ExternalLink,
   MapPin,
   Navigation,
+  Camera,
+  Map as MapIcon,
   Sparkles,
   UtensilsCrossed,
-  Video,
 } from "lucide-react";
+import { StopDialog } from "./stop-dialog";
 import { buildMapLinks, formatPriceEstimate } from "@/lib/trip-links";
 import { addMinutes, dayPart, formatDuration } from "@/lib/itinerary";
 import { describeItemEffort, itemEnergy } from "@/lib/energy";
@@ -36,6 +38,8 @@ const TYPE_STYLE: Record<ItemType, { label: string; icon: typeof Compass; classN
 //     heavier content that not every reader wants open
 export function ActivityCard({ item, destination }: ActivityCardProps) {
   const [expanded, setExpanded] = useState(false);
+  // null = closed; otherwise the tab the dialog should open on.
+  const [view, setView] = useState<"map" | "photos" | null>(null);
   const detailsId = useId();
 
   const end = addMinutes(item.start, item.durationMinutes);
@@ -147,42 +151,55 @@ export function ActivityCard({ item, destination }: ActivityCardProps) {
               Location & map
             </h3>
 
-            {links.osmEmbedUrl ? (
-              <div className="mt-2 overflow-hidden rounded-md shadow-card">
-                <iframe
-                  title={`Map showing ${item.name}`}
-                  src={links.osmEmbedUrl}
-                  loading="lazy"
-                  className="h-48 w-full sm:h-56"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
-              </div>
-            ) : null}
-
-            <div className="mt-3 flex flex-wrap gap-2">
+            {/* Both views open over the itinerary now — see
+                components/trip/stop-dialog.tsx. Leaving the page to look
+                at a map meant losing your place in the day. */}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <MapViewButton icon={MapIcon} onClick={() => setView("map")}>
+                View on map
+              </MapViewButton>
+              <MapViewButton icon={Camera} onClick={() => setView("photos")}>
+                Photos
+              </MapViewButton>
               <MapLinkButton href={links.googleSearchUrl} icon={ExternalLink}>
-                Open in Google Maps
+                Directions
               </MapLinkButton>
-              {links.osmViewUrl ? (
-                <MapLinkButton href={links.osmViewUrl} icon={MapPin}>
-                  Open in OpenStreetMap
-                </MapLinkButton>
-              ) : null}
-              {links.streetViewUrl ? (
-                <MapLinkButton href={links.streetViewUrl} icon={Video}>
-                  360° street view
-                </MapLinkButton>
-              ) : (
-                <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded bg-accent-soft/40 px-3 py-2 text-xs text-muted">
-                  <Video className="h-3.5 w-3.5" aria-hidden="true" />
-                  360° view unavailable for this stop
-                </span>
-              )}
             </div>
           </div>
         </div>
       ) : null}
+      <StopDialog
+        item={item}
+        destination={destination}
+        links={links}
+        open={view !== null}
+        initialTab={view ?? "map"}
+        onOpenChange={(next) => {
+          if (!next) setView(null);
+        }}
+      />
     </article>
+  );
+}
+
+function MapViewButton({
+  icon: Icon,
+  onClick,
+  children,
+}: {
+  icon: typeof Navigation;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded bg-accent px-3 py-2 text-xs font-semibold text-paper transition-colors hover:bg-deep"
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {children}
+    </button>
   );
 }
 

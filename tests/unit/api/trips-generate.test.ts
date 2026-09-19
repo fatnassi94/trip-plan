@@ -9,6 +9,7 @@ vi.mock("@/lib/supabase/server", async (importOriginal) => ({
 
 import { POST } from "@/app/api/trips/generate/route";
 import { generateTrip } from "@/lib/ai/provider";
+import { AIProviderError } from "@/lib/ai/errors";
 import { createServiceRoleClient, createSessionClient } from "@/lib/supabase/server";
 import { argsOf, configureEnv, fakeSupabase, jsonRequest, type QueryResult } from "@/tests/unit/helpers/api";
 import { makeTrip, makeTripRequest } from "@/tests/fixtures/trip";
@@ -139,6 +140,26 @@ describe("POST /api/trips/generate", () => {
     const res = await POST(jsonRequest(request));
     expect(res.status).toBe(502);
     expect(admin.from).not.toHaveBeenCalled();
+  });
+
+  it("says the service is busy, not that the trip was invalid, on a 503", async () => {
+    setup();
+    vi.mocked(generateTrip).mockRejectedValue(new AIProviderError("overloaded", "high demand"));
+    const res = await POST(jsonRequest(request));
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Retry-After")).toBe("30");
+    expect((await res.json()).error).toMatch(/busy/i);
+  });
+
+  it("returns 429 with the provider's own wait when the AI key is out of quota", async () => {
+    setup();
+    vi.mocked(generateTrip).mockRejectedValue(
+      new AIProviderError("quota", "daily limit", { retryAfterMs: 33472 }),
+    );
+    const res = await POST(jsonRequest(request));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("Retry-After")).toBe("34");
+    expect((await res.json()).error).toMatch(/usage limit/i);
   });
 
   it("hands back the full trip when saving fails, since there is nowhere to park it", async () => {

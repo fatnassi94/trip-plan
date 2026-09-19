@@ -5,6 +5,7 @@ vi.mock("@/lib/ai/providers/gemini", () => ({
 }));
 
 import { generateTrip } from "@/lib/ai/provider";
+import { AIProviderError } from "@/lib/ai/errors";
 import { geminiProvider } from "@/lib/ai/providers/gemini";
 import { makeTrip, makeTripRequest } from "@/tests/fixtures/trip";
 
@@ -47,6 +48,15 @@ describe("generateTrip", () => {
 
     await expect(generateTrip(request)).resolves.toEqual(later);
     expect(generateJSON.mock.calls[1][0].system).toMatch(/before the 10:00 earliest start/);
+  });
+
+  it("never spends a second call repairing a service outage", async () => {
+    // A 503 is not the model getting the JSON wrong: re-prompting cannot
+    // fix it, and on a 20-a-day free tier it burns the quota twice as fast.
+    generateJSON.mockRejectedValue(new AIProviderError("overloaded", "high demand"));
+
+    await expect(generateTrip(makeTripRequest())).rejects.toMatchObject({ kind: "overloaded" });
+    expect(generateJSON).toHaveBeenCalledTimes(1);
   });
 
   it("refuses an unknown provider", async () => {

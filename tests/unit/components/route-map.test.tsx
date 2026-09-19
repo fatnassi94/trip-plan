@@ -39,11 +39,26 @@ const fake = vi.hoisted(() => {
     getSource() {
       return { setData: () => {} };
     }
+    getLayer(id: string) {
+      // Truthy once the layer has been added, so the dash animation runs.
+      return this.calls.some((c) => c.method === "addLayer" && (c.args[0] as { id?: string })?.id === id)
+        ? { id }
+        : undefined;
+    }
     remove() {
       this.removed = true;
     }
   }
-  for (const method of ["addControl", "addSource", "addLayer", "fitBounds", "jumpTo", "easeTo"]) {
+  for (const method of [
+    "addControl",
+    "addSource",
+    "addLayer",
+    "fitBounds",
+    "jumpTo",
+    "easeTo",
+    "flyTo",
+    "setPaintProperty",
+  ]) {
     (FakeMap.prototype as unknown as Record<string, unknown>)[method] = function (this: FakeMap, ...args: unknown[]) {
       this.calls.push({ method, args });
     };
@@ -153,7 +168,8 @@ describe("RouteMap", () => {
     rerender(<RouteMap stops={STOPS} onSelectStop={onSelectStop} selectedKey="1-1" />);
     expect(screen.getByRole("button", { name: "Stop 2" })).toHaveClass("roam-marker-active");
     expect(screen.getByRole("button", { name: "Stop 1" })).not.toHaveClass("roam-marker-active");
-    expect(latestMap().calls.some((c) => c.method === "easeTo")).toBe(true);
+    // flyTo, not easeTo: the camera arcs between stops now.
+    expect(latestMap().calls.some((c) => c.method === "flyTo")).toBe(true);
   });
 
   it("shows a fallback when the map fails before loading, and Try again starts a fresh map", async () => {
