@@ -46,3 +46,69 @@ export function accountButton(page: Page) {
 export function signedOutAccountHeading(page: Page) {
   return page.getByRole("heading", { name: "Your trips live here" });
 }
+
+// ── The Travel DNA interview ───────────────────────────────────────────
+//
+// Step 2 of the planner asks one question at a time (see
+// components/profile/dna-chat.tsx), so a test that wants a filled-in
+// profile has to walk the conversation rather than set a dozen controls.
+// Single-answer questions advance themselves; the rest need Next or Skip.
+
+/** Which question is on screen, or null at the finale. */
+export async function currentDnaQuestion(page: Page): Promise<string | null> {
+  const card = page.locator("[id^='dna-q-']").first();
+  if ((await card.count()) === 0) return null;
+  return ((await card.getAttribute("id")) ?? "").replace("dna-q-", "");
+}
+
+export async function expectDnaQuestion(page: Page, id: string) {
+  // RoamAI types its questions out, and the answer controls only appear
+  // once it has finished — so wait for the controls, not just the text.
+  await expect(page.locator(`#dna-q-${id}`)).toBeVisible();
+  await expect(dnaCard(page, id).getByRole("button").first()).toBeVisible();
+}
+
+/** The card for one question — scopes clicks away from the transcript. */
+export function dnaCard(page: Page, questionId: string) {
+  return page.locator(`[data-dna-card="${questionId}"]`);
+}
+
+/** Tap a choice and wait for the question it belongs to to give way. */
+export async function answerDna(page: Page, questionId: string, choice: string | RegExp) {
+  await expectDnaQuestion(page, questionId);
+  await dnaCard(page, questionId).getByRole("button", { name: choice }).first().click();
+  await expect(page.locator(`#dna-q-${questionId}`)).toBeHidden();
+}
+
+/** Advance past a multi-answer or optional question. */
+export async function nextDnaQuestion(page: Page, questionId: string) {
+  await expectDnaQuestion(page, questionId);
+  await page.getByRole("button", { name: /^(Next|Skip)$/ }).click();
+  await expect(page.locator(`#dna-q-${questionId}`)).toBeHidden();
+}
+
+/** The fastest legal path from the first question to the Build step. */
+export async function walkDnaToFinale(page: Page, persona: RegExp = /^Foodie/) {
+  await expectDnaQuestion(page, "personas");
+  await page.getByRole("button", { name: persona }).click();
+  await nextDnaQuestion(page, "personas");
+  await answerDna(page, "budget", /^Comfort/);
+  await answerDna(page, "pace", /^Balanced/);
+  await answerDna(page, "walking", /A fair bit/);
+  await answerDna(page, "crowds", /Some is fine/);
+  await answerDna(page, "localness", /^Balanced/);
+  await answerDna(page, "discovery", /Mix of both/);
+  await nextDnaQuestion(page, "food");
+  await nextDnaQuestion(page, "dislikes");
+  await nextDnaQuestion(page, "rules");
+}
+
+/**
+ * Jump back to an answered question from the transcript. The pill's
+ * accessible name carries the prompt, so a fragment of it is enough.
+ */
+export async function editDnaAnswer(page: Page, promptFragment: string) {
+  await page
+    .getByRole("button", { name: new RegExp(`Change your answer to .*${promptFragment}`, "i") })
+    .click();
+}

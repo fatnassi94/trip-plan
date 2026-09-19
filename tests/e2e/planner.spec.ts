@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { makeTrip } from "../fixtures/trip";
-import { resetBackend } from "./support/helpers";
+import { answerDna, dnaCard, expectDnaQuestion, nextDnaQuestion, resetBackend } from "./support/helpers";
 
 // The golden path, Landing → Create Trip → Travel DNA → AI Thinking →
 // Trip Overview → Day Detail → Map. The AI is replaced by a fixture at the
@@ -48,12 +48,26 @@ test("plans a trip from the landing page through to the whole-trip map", async (
   // Step 2 — Travel DNA
   await expect(page.getByRole("heading", { name: "Discovering your travel DNA" })).toBeVisible();
   await expect(currentStep).toContainText("Travel DNA");
-  const build = page.getByRole("button", { name: "Build my trip" });
+  // One question at a time now — see components/profile/dna-chat.tsx.
+  // Two of these by the end: the sticky action bar's and the finale's.
+  const build = page.getByRole("button", { name: "Build my trip" }).first();
   await expect(build).toBeDisabled();
+  await expectDnaQuestion(page, "personas");
   await page.getByRole("button", { name: /^Foodie/ }).click();
-  await page.getByRole("button", { name: /^Packed/ }).click();
-  await page.getByRole("button", { name: "Local", exact: true }).click();
+  await nextDnaQuestion(page, "personas");
+  await answerDna(page, "budget", /^Comfort/);
+  await answerDna(page, "pace", /^Packed/);
+  // The archetype in the sidebar tracks the answers as they land.
   await expect(page.getByRole("heading", { name: "The Energetic Epicurean" })).toBeVisible();
+  await answerDna(page, "walking", /A fair bit/);
+  await answerDna(page, "crowds", /Some is fine/);
+  await answerDna(page, "localness", /Like a local/);
+  await answerDna(page, "discovery", /Mix of both/);
+  await dnaCard(page, "food").getByRole("button", { name: "Local" }).click();
+  await nextDnaQuestion(page, "food");
+  await nextDnaQuestion(page, "dislikes");
+  await nextDnaQuestion(page, "rules");
+  await expect(page.getByRole("heading", { name: "That's your Travel DNA." })).toBeVisible();
   await build.click();
 
   // Step 3 — AI Thinking

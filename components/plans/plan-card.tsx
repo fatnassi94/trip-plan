@@ -16,7 +16,7 @@ interface PlanCardProps {
 
 // role="radio" in a role="radiogroup" (see the parent's rendering) —
 // exactly one plan can be chosen at a time, same reasoning as
-// components/profile/budget-selector.tsx's earlier segmented control.
+// the planner's earlier segmented control.
 export function PlanCard({ plan, selected, onSelect, busy, delay = 0 }: PlanCardProps) {
   return (
     <button

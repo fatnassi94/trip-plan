@@ -1,10 +1,21 @@
 import { expect, test, type Page } from "@playwright/test";
 import { makeTrip } from "../fixtures/trip";
 import { MOCK_SUPABASE_URL } from "./support/env";
-import { resetBackend, seedUser, submitAuthForm } from "./support/helpers";
+import {
+  answerDna,
+  dnaCard,
+  editDnaAnswer,
+  expectDnaQuestion,
+  nextDnaQuestion,
+  resetBackend,
+  seedUser,
+  submitAuthForm,
+  walkDnaToFinale,
+} from "./support/helpers";
 
-// Travel DNA v1: style sliders, crowd tolerance and hard rules reach the
-// planner, and a signed-in traveler's DNA is saved and restored next time.
+// Travel DNA v1: style, crowd tolerance and hard rules reach the planner,
+// and a signed-in traveler's DNA is saved and restored next time. Step 2
+// asks one question at a time, so these walk the interview.
 // The AI is a fixture; saving goes through the real API into the mock DB.
 
 const PROFILE_URL =
@@ -33,12 +44,23 @@ test("a signed-in traveler's Travel DNA and hard rules are saved, used, and rest
   await expect(page.getByRole("heading", { name: "Discovering your travel DNA" })).toBeVisible();
   await expect(page.getByLabel("Save to my account")).toBeChecked();
 
+  await expectDnaQuestion(page, "personas");
   await page.getByRole("button", { name: /^Foodie/ }).click();
-  await page.getByRole("button", { name: /^Avoid crowds/ }).click();
-  await page.getByRole("slider", { name: "Tourist or local" }).fill("5");
-  await page.getByLabel("Earliest start").selectOption("10:00");
-  await page.getByLabel("Max walking per day").selectOption("5");
-  await page.getByRole("group", { name: "Never include" }).getByRole("button", { name: "Museums" }).click();
+  await nextDnaQuestion(page, "personas");
+  await answerDna(page, "budget", /^Comfort/);
+  await answerDna(page, "pace", /^Balanced/);
+  await answerDna(page, "walking", /A fair bit/);
+  await answerDna(page, "crowds", /^Avoid crowds/);
+  await answerDna(page, "localness", /Like a local/);
+  await answerDna(page, "discovery", /Mix of both/);
+  await nextDnaQuestion(page, "food");
+  await nextDnaQuestion(page, "dislikes");
+
+  await expectDnaQuestion(page, "rules");
+  const card = dnaCard(page, "rules");
+  await card.getByLabel("Earliest start").selectOption("10:00");
+  await card.getByLabel("Max walking per day").selectOption("5");
+  await card.getByRole("group", { name: "Never include" }).getByRole("button", { name: "Museums" }).click();
 
   const rules = page.getByRole("list", { name: "Your hard rules" });
   await expect(rules).toContainText("Nothing before 10:00");
@@ -46,7 +68,8 @@ test("a signed-in traveler's Travel DNA and hard rules are saved, used, and rest
   await expect(rules).toContainText("Never: museums");
 
   const seen = await captureGeneration(page);
-  await page.getByRole("button", { name: "Build my trip" }).click();
+  await nextDnaQuestion(page, "rules");
+  await page.getByRole("button", { name: "Build my trip" }).first().click();
   await expect(page).toHaveURL(/\/trip\/local$/);
 
   expect(seen.body?.profile).toMatchObject({
@@ -66,12 +89,17 @@ test("a signed-in traveler's Travel DNA and hard rules are saved, used, and rest
   // Next trip: everything comes back.
   await page.goto(PROFILE_URL);
   await expect(page.getByText("Loaded your saved Travel DNA")).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Foodie/ })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("button", { name: /^Avoid crowds/ })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("slider", { name: "Tourist or local" })).toHaveValue("5");
-  await expect(page.getByLabel("Earliest start")).toHaveValue("10:00");
-  await expect(page.getByLabel("Max walking per day")).toHaveValue("5");
+  // A restored profile opens at the end: nothing left to ask.
+  await expect(page.getByRole("heading", { name: "That's your Travel DNA." })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Change your answer.*kind of traveler/ })).toContainText("Foodie");
+  await expect(page.getByRole("button", { name: /Change your answer.*crowds/ })).toContainText("Avoid crowds");
+  await expect(page.getByRole("button", { name: /Change your answer.*like a local/i })).toContainText("Like a local");
   await expect(page.getByRole("list", { name: "Your hard rules" })).toContainText("Never: museums");
+
+  // And the saved rules are still there when you go back to them.
+  await editDnaAnswer(page, "never break");
+  await expect(dnaCard(page, "rules").getByLabel("Earliest start")).toHaveValue("10:00");
+  await expect(dnaCard(page, "rules").getByLabel("Max walking per day")).toHaveValue("5");
 });
 
 test("unticking Save keeps the Travel DNA out of the account", async ({ page, request }) => {
@@ -80,9 +108,9 @@ test("unticking Save keeps the Travel DNA out of the account", async ({ page, re
   await submitAuthForm(page, "login", "dna@example.com", "correct-horse");
 
   await page.getByLabel("Save to my account").uncheck();
-  await page.getByRole("button", { name: /^Foodie/ }).click();
+  await walkDnaToFinale(page);
   await captureGeneration(page);
-  await page.getByRole("button", { name: "Build my trip" }).click();
+  await page.getByRole("button", { name: "Build my trip" }).first().click();
   await expect(page).toHaveURL(/\/trip\/local$/);
 
   const state = await (await request.get(`${MOCK_SUPABASE_URL}/__state`)).json();
@@ -102,12 +130,23 @@ test("a signed-out traveler is invited to log in, and their rules still reach th
   expect(next.searchParams.get("startDate")).toBe("2026-10-12");
   await expect(page.getByText("No hard rules yet")).toBeVisible();
 
+  await expectDnaQuestion(page, "personas");
   await page.getByRole("button", { name: /^Foodie/ }).click();
-  await page.getByLabel("Latest finish").selectOption("21:00");
-  await page.getByLabel("Longest single stop").selectOption("120");
+  await nextDnaQuestion(page, "personas");
+  await answerDna(page, "budget", /^Comfort/);
+  await answerDna(page, "pace", /^Balanced/);
+  await answerDna(page, "walking", /A fair bit/);
+  await answerDna(page, "crowds", /Some is fine/);
+  await answerDna(page, "localness", /^Balanced/);
+  await answerDna(page, "discovery", /Mix of both/);
+  await nextDnaQuestion(page, "food");
+  await nextDnaQuestion(page, "dislikes");
+  await dnaCard(page, "rules").getByLabel("Latest finish").selectOption("21:00");
+  await dnaCard(page, "rules").getByLabel("Longest single stop").selectOption("120");
 
   const seen = await captureGeneration(page);
-  await page.getByRole("button", { name: "Build my trip" }).click();
+  await nextDnaQuestion(page, "rules");
+  await page.getByRole("button", { name: "Build my trip" }).first().click();
   await expect(page).toHaveURL(/\/trip\/local$/);
   expect(seen.body?.profile?.constraints).toEqual({ latestEnd: "21:00", maxActivityMinutes: 120 });
 });
